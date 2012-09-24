@@ -1,0 +1,15 @@
+
+/2_Concept Art
+/3_Builds
+/4_Elements
+/5_Projects
+/6_Documents
+/old
+/1_Unity/Library
+/1_Unity/Temp
+
+*.swp
+*.csproj
+*.pidb
+*.sln
+*.userprefs
