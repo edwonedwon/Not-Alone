@@ -9,6 +9,7 @@
 /1_Unity/Library
 /1_Unity/Temp
 
+*.unityproj
 *.swp
 *.csproj
 *.pidb
