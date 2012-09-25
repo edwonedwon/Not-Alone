@@ -65,7 +65,7 @@ public class FingerGesturesManagerScript : MonoBehaviour {
 					Vector3 halfway_pos = .5f*(tps.transform.position + new_touch_prefab.transform.position);
 					
 					// Spawn 
-					TwoTouchPrefab_Spawn(halfway_pos, new_touch_prefab.networkView, tps.networkView);
+//					TwoTouchPrefab_Spawn(halfway_pos, new_touch_prefab.networkView, tps.networkView);
 					
 				}
 				
@@ -78,11 +78,11 @@ public class FingerGesturesManagerScript : MonoBehaviour {
 	
 	
 	
-	public /*static*/ void TwoTouchPrefab_Spawn(Vector3 pos, NetworkView touch1, NetworkView touch2)
-	{
-		NetworkViewID nvID = Network.AllocateViewID();	
-		networkView.RPC("TwoTouchPrefab_Spawn_RPC", RPCMode.AllBuffered, Time.time, pos, nvID, touch1.viewID, touch2.viewID);		
-	}
+//	public /*static*/ void TwoTouchPrefab_Spawn(Vector3 pos, NetworkView touch1, NetworkView touch2)
+//	{
+//		NetworkViewID nvID = Network.AllocateViewID();	
+//		networkView.RPC("TwoTouchPrefab_Spawn_RPC", RPCMode.AllBuffered, Time.time, pos, nvID, touch1.viewID, touch2.viewID);		
+//	}
 	
 	[RPC]
 	public /*static*/ void TwoTouchPrefab_Spawn_RPC(float triggered_seconds, Vector3 pos, NetworkViewID twoTouchPrefab_view_id, NetworkViewID touch1_view_id, NetworkViewID touch2_view_id)

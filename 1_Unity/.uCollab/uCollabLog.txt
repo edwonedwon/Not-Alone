@@ -1,0 +1,4 @@
+09/25/2012 14:33:29, EDITOR uCollab process marker file not found. This is OK.
+09/25/2012 14:33:37, EDITOR Stop called (already stopped)
+09/25/2012 14:34:02, EDITOR uCollab process marker file not found. This is OK.
+09/25/2012 14:34:02, EDITOR File sync started
