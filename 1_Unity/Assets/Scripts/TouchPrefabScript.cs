@@ -7,7 +7,8 @@ public class TouchPrefabScript : MonoBehaviour {
 	
 	ParticleSystem particlesPS;
 	Transform particlesTF;
-
+	FluidFieldGenerator fluidGenerator;
+	
 	void Start () {
 		
 //		print("(start) touch with id: " + networkView.viewID);
@@ -16,6 +17,9 @@ public class TouchPrefabScript : MonoBehaviour {
 		particlesTF = GameObject.Find("Particles").GetComponent<Transform>();
 		
 		particlesPS.particleSystem.enableEmission = false;
+		
+		
+		fluidGenerator = GameObject.Find ("heightfield mesh").GetComponent<FluidFieldGenerator>();
 		
 	}
 	
@@ -45,7 +49,8 @@ public class TouchPrefabScript : MonoBehaviour {
 	
 	}
 	
-	void OnFingerMove (int finger, Vector2 pos) {
+	void OnFingerMove (int finger, Vector2 pos)
+	{
 		//PhotonView pv = PhotonView.Get(this);
 		Vector3 posWorld;
 		posWorld = Camera.main.ScreenToWorldPoint(new Vector3(pos.x,pos.y,zOffset));
@@ -55,14 +60,19 @@ public class TouchPrefabScript : MonoBehaviour {
 		// make particles move same as touch
 		particlesTF.position = new Vector3(posWorld.x,posWorld.y,zOffset);
 		
-		if (this.networkView.isMine) {
+		if (this.networkView.isMine)
+		{
 			transform.position = new Vector3(posWorld.x,posWorld.y,zOffset);
 		}
+		
+			
+		fluidGenerator.OnMouseDown(finger, pos);
 		
 		
 	}
 	
-	void OnFingerUp (int finger, Vector2 pos, float timeHeldDown) {
+	void OnFingerUp (int finger, Vector2 pos, float timeHeldDown)
+	{
 		
 		// disable particle emission
 		particlesPS.particleSystem.enableEmission = false;
@@ -72,6 +82,8 @@ public class TouchPrefabScript : MonoBehaviour {
 			Network.Destroy(gameObject);
 //			print("Destroy touch with id: " + networkView.viewID.ToString());
 		} 
+		
+		fluidGenerator.OnMouseUp(finger, pos);
 		
 	}
 	

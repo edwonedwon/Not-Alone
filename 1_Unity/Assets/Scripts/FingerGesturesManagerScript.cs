@@ -32,7 +32,8 @@ public class FingerGesturesManagerScript : MonoBehaviour {
 	
 	#region Finger Gestures
 	
-	void OnFingerDown (int finger, Vector2 pos) {
+	void OnFingerDown (int finger, Vector2 pos)
+	{
 		
 		GameObject new_touch_prefab = null;
 		if (Network.isClient || Network.isServer) 
