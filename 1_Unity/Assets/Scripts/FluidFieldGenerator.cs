@@ -12,6 +12,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	int width = 0;
 	int height = 0;
+	Vector2 screenAspectScale;
 	float screenWidth = 0;
 	float screenHeight = 0;
 	int arraySize = 0;
@@ -19,6 +20,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	private QuickFluidSolver solver;
 	Color32[] colors = null;
 	Vector3[] vertices = null;
+	
 	
 	void Start()
 	{
@@ -45,7 +47,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		height = 255;//System.Math.Min(heightMap.height, 255);
 		arraySize = height*width;
 		
-		Vector2 screenAspectScale = new Vector2(screenWidth/(float)width, screenHeight/(float)height);
+		screenAspectScale = new Vector2(screenWidth/(float)width, screenHeight/(float)height);
 		
 		
 		vertices = new Vector3[arraySize];
@@ -120,7 +122,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		Vector3 scale = GetComponent<Transform>().localScale;
 		
 		float dt = 1.0f / fluidFPS;
-		solver.Update(position, scale, width, screenWidth, screenHeight, height, dt);		
+		solver.Update(position, scale, Camera.main, dt);		
 		
 		Mesh mesh = GetComponent<MeshFilter>().mesh;
 		
@@ -149,7 +151,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public class QuickFluidSolver
 	{
-        private bool MouseIsDown = false;
+        private int MouseFingerDown = 0;
 		public Vector2 LastMousePos = new Vector2(0,0);
 		public Vector2 mouseDir = new Vector2(0,0);
 		
@@ -163,7 +165,8 @@ public class FluidFieldGenerator : MonoBehaviour
 
         int N = 0;
 		int KCount = 0;
-
+		int size = 0;
+		
         public QuickFluidSolver(int n, int k)
         {
 			N = n;
@@ -173,7 +176,7 @@ public class FluidFieldGenerator : MonoBehaviour
 
         public void InitFields()
         {
-            int size = (N + 2) * (N + 2);
+            size = (N + 2) * (N + 2);
 
             u = new float[size];
             u0 = new float[size];
@@ -193,7 +196,7 @@ public class FluidFieldGenerator : MonoBehaviour
 				
 		public void OnMouseDown(int finger, Vector2 pos)
 		{
-			MouseIsDown = true;
+			MouseFingerDown = finger;
 			mouseDir.x = pos.x - LastMousePos.x;
 			mouseDir.y = pos.y - LastMousePos.y;
 			
@@ -203,15 +206,15 @@ public class FluidFieldGenerator : MonoBehaviour
 		
 		public void OnMouseUp(int finger, Vector2 pos)
 		{
-			MouseIsDown = false;
+			MouseFingerDown = -1;
 			LastMousePos.x = pos.x;
 			LastMousePos.y = pos.y;
 		}
 		
         public void Render(Color32[] colorfield, Vector3[] vertices, int width, int height)
         {
-            float sceneWidth = width;
-            float sceneHeight = height;			
+            float sceneWidth = width; 
+            float sceneHeight = height;
 			
 			for (int y=0;y<height; ++y)
 			{
@@ -235,55 +238,79 @@ public class FluidFieldGenerator : MonoBehaviour
 					float uval = u[idx0] * 10;
                     float vval = v[idx0] * 10;
 					
-					float d = System.Math.Abs(densityField[idx0]) * 0.1f;
+					float d = System.Math.Abs(densityField[idx0]);
 					float r = System.Math.Abs(uval) * 0.1f;
-                    float b = System.Math.Abs(vval) * 0.1f;
+                    r += System.Math.Abs(vval) * 0.1f;
 					
-                    float alpha = (d + r + b) * 2;
-					float red = (d+r)*1;
-					float blue = (d+r) * 1;
+                    float alpha = d * 3;
+					
+					//float red = (d+r)*1;
+					//float blue = (d+r) * 1;
 					
 					if (alpha > 1)
 						alpha = 1;
+					if(r>1)
+						r=1;
 					
 					int colorIdx = y*width+x;
 					byte colorIntensity = (byte)(alpha*255);
-					colorfield[colorIdx] = new Color32(colorIntensity, colorIntensity, colorIntensity, 0);
+					byte red = (byte)(r*alpha*255);
+					colorfield[colorIdx] = new Color32(colorIntensity, 0, 0, 255);
 					vertices[colorIdx].z = 0;//colorIntensity*0.8f;
 				}
-			}	
+			}
 		}
 		 
-        public void Update(Vector3 position, Vector3 scale, float width, float height, float screenwidth, float screenheight, float dt)
-        {
-			float resDiffX = (LastMousePos.x / screenwidth);
-			float resDiffY = (LastMousePos.y / screenheight);
+        public void Update(Vector3 position, Vector3 scale, Camera camcam, float dt)
+        {			
+			Vector3 worldPos = camcam.ScreenToWorldPoint(new Vector3(LastMousePos.x, LastMousePos.y, 0));
+			Vector3 screenPos = camcam.WorldToViewportPoint(worldPos);
 			
-            if (MouseIsDown)
-            {
-				//DebugStreamer.message = "pos.x = " + LastMousePos.x.ToString() + ", " + LastMousePos.y.ToString();
+			//DebugStreamer.message = "cell index: " + screenPos.x.ToString() + ", " + screenPos.y.ToString();
+		
+			int xCell =  (int)(screenPos.x * N);
+            int yCell =  (int)(screenPos.y * N);
 				
-                int xCell =  (int)(resDiffX * N);
-                int yCell =  (int)(resDiffY * N);
+			if(xCell<0)
+				xCell=0;
+			if(xCell>=N)
+				xCell=N-1;
+			if(yCell<0)
+				yCell=0;
+			if(yCell>=N)
+				yCell=N-1;
+			
+			
+			int idx0 = IX(xCell, yCell);
+			
+			//DebugStreamer.message = "mouse down = " + MouseFingerDown.ToString();
+			
+            if (MouseFingerDown == 0)
+			{   
+                u0[idx0] += mouseDir.x * 100 * dt;
+				v0[idx0] += mouseDir.y * 100 * dt;
 				
-				//DebugStreamer.message = "cell index: " + xCell.ToString() + ", " + yCell.ToString();
-				
-				if(xCell<0)
-					xCell=0;
-				if(xCell>=N)
-					xCell=N-1;
-				if(yCell<0)
-					yCell=0;
-				if(yCell>=N)
-					yCell=N-1;
-				
-                int idx = IX(xCell, yCell);
-                u0[idx] += mouseDir.x * 100 * dt;
-				v0[idx] += mouseDir.y * 100 * dt;
             }
+			else if(MouseFingerDown == 1)
+			{
+				
+				int idx1 = IX(xCell+1, yCell);
+				int idx2 = IX(xCell-1, yCell);
+				int idx3 = IX(xCell, yCell+1);
+				int idx4 = IX(xCell, yCell-1);
+				
+				prevDensityField[idx0] += 100*dt;
+				prevDensityField[idx1] += 100*dt;
+				prevDensityField[idx2] += 100*dt;
+				prevDensityField[idx3] += 100*dt;
+				prevDensityField[idx4] += 100*dt;
+				
+			}
+			
 			
 			float viscosity = 0.00001f;
-			float diff = 0.00001f;
+			float diff = 0.000001f;
+			
             VelocityStep(viscosity, dt);
             DensityStep(diff, dt);
         }
@@ -291,11 +318,21 @@ public class FluidFieldGenerator : MonoBehaviour
         private void DensityStep(float diff, float dt)
         {
             AddSource(densityField, prevDensityField, dt);
-            //SwapD();
+            RemoveDensities(densityField, dt);
+			//SwapD();
+			
             Diffuse(0, prevDensityField, densityField, diff, dt);
             //SwapD();
             Advect(0, densityField, prevDensityField, u, v, dt);
         }
+		
+		private void RemoveDensities(float[] densities, float dt)
+		{
+			for(int i = 0; i < size; ++i)
+			{
+				densities[i] += (0.0f - densities[i]) * 0.9f * dt;
+			}
+		}
 
         private void VelocityStep(float visc, float dt)
         {
