@@ -13,10 +13,10 @@ public class TouchPrefabScript : MonoBehaviour {
 		
 //		print("(start) touch with id: " + networkView.viewID);
 
-		particlesPS = GameObject.Find("Particles").GetComponent<ParticleSystem>();
-		particlesTF = GameObject.Find("Particles").GetComponent<Transform>();
-		
-		particlesPS.particleSystem.enableEmission = false;
+//		particlesPS = GameObject.Find("Particles").GetComponent<ParticleSystem>();
+//		particlesTF = GameObject.Find("Particles").GetComponent<Transform>();
+//		
+//		particlesPS.particleSystem.enableEmission = false;
 		
 		
 		fluidGenerator = GameObject.Find ("heightfield mesh").GetComponent<FluidFieldGenerator>();
@@ -51,19 +51,19 @@ public class TouchPrefabScript : MonoBehaviour {
 	
 	void OnFingerMove (int finger, Vector2 pos)
 	{
-		//PhotonView pv = PhotonView.Get(this);
-		Vector3 posWorld;
-		posWorld = Camera.main.ScreenToWorldPoint(new Vector3(pos.x,pos.y,zOffset));
-		
-		// enable particle emission
-		particlesPS.particleSystem.enableEmission = true;
-		// make particles move same as touch
-		particlesTF.position = new Vector3(posWorld.x,posWorld.y,zOffset);
-		
-		if (this.networkView.isMine)
-		{
-			transform.position = new Vector3(posWorld.x,posWorld.y,zOffset);
-		}
+//		//PhotonView pv = PhotonView.Get(this);
+//		Vector3 posWorld;
+//		posWorld = Camera.main.ScreenToWorldPoint(new Vector3(pos.x,pos.y,zOffset));
+//		
+//		// enable particle emission
+//		particlesPS.particleSystem.enableEmission = true;
+//		// make particles move same as touch
+//		particlesTF.position = new Vector3(posWorld.x,posWorld.y,zOffset);
+//		
+//		if (this.networkView.isMine)
+//		{
+//			transform.position = new Vector3(posWorld.x,posWorld.y,zOffset);
+//		}
 		
 			
 		fluidGenerator.OnMouseDown(finger, pos);
@@ -75,7 +75,7 @@ public class TouchPrefabScript : MonoBehaviour {
 	{
 		
 		// disable particle emission
-		particlesPS.particleSystem.enableEmission = false;
+//		particlesPS.particleSystem.enableEmission = false;
 		
 		if (networkView.isMine) 
 		{

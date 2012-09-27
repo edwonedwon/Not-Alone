@@ -69,12 +69,8 @@ public class FingerGesturesManagerScript : MonoBehaviour {
 //					TwoTouchPrefab_Spawn(halfway_pos, new_touch_prefab.networkView, tps.networkView);
 					
 				}
-				
 			}
-		}
-				
-		
-		
+		}			
 	}
 	
 	
