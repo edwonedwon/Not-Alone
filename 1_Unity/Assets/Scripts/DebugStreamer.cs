@@ -22,7 +22,7 @@ private GameObject guiObj;
 private GUIText guiTxt;
 private TextAnchor _anchorAt;
 private float _pixelOffset;
-private bool _showLineMovement;
+private bool _showLineMovement	;
 private string	_message;
 private ArrayList messageHistory = new ArrayList ();
 private int messageHistoryLength;
