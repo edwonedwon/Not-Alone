@@ -1,4 +1,4 @@
-Shader "MyShader/non_texture_shader"
+Shader "MyShader/fluid_particles"
 {
 
     Category
@@ -10,6 +10,10 @@ Shader "MyShader/non_texture_shader"
         }
         SubShader
         {
+	        Tags {Queue = Transparent}
+		    Ztest Off
+		    Zwrite Off
+		    Blend SrcAlpha One
 	        Pass
 	        {
 	        
