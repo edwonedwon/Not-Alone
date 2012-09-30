@@ -8,20 +8,22 @@ public class FluidFieldGenerator : MonoBehaviour
 	//public Texture2D heightMap;
 	public Material material;
 	
-	
-	public int N = 64;
+	public int N = 128;
 	private int N1 = 0;
 	public int KCount = 3;
+	public int PCount = 10;
 	public float fluidFPS = 10.0f;
 	public float viscocity = 10;
 	public float density = 10;
 	
+	public float InkClearRate = 0.5f;
 	public int MouseRadius = 5;
 	public float InkFlowFromMouse = 100;
 	public float VelocityFlowFromMouse = 10;	
 	
+	public int ChunkFieldN = 16;
 	public int VisualizerGridSize = 4;
-	public int VisualizerGridFieldGridDensity = 48;
+	public int VisualizerGridFieldGridDensity = 32;
 	
 	//public float particleGridOffsets = 0.5f;
 	//public float initialParticleGridSize = 25.0f;
@@ -45,11 +47,31 @@ public class FluidFieldGenerator : MonoBehaviour
     private float[,] prevDensityField;
 	
 	
+    FieldChunk[,] chunks = null;
+	
+	
+	public class FieldChunk
+    {
+        public int fieldStartX;
+        public int fieldStartY;
+        public int fieldSize;
+        public int mouseTime = 0;
+
+        public FieldChunk(int xstart, int ystart, int size)
+        {
+            fieldStartX = xstart;
+            fieldStartY = ystart;
+            fieldSize = size;
+            mouseTime = 0;
+        }
+    }	
+	
 	
 	void Start()
 	{
 		InitFields();
 		InitVisualizerField();
+		InitChunkFields();
 	}
 	
 	private void InitVisualizerField()
@@ -77,6 +99,27 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
 	}
 	
+	
+	public void InitChunkFields()
+    {
+        chunks = new FieldChunk[ChunkFieldN, ChunkFieldN];
+
+        float gridAspectScalex = (1.0f/(float)ChunkFieldN);
+        float gridAspectScaleY = (1.0f/(float)ChunkFieldN);
+
+        int chunkSize = N / ChunkFieldN;
+		DebugStreamer.message = "chunk size: " + chunkSize.ToString();
+        for (int i = 0; i < ChunkFieldN; ++i)
+        {
+            for (int j = 0; j < ChunkFieldN; ++j)
+            {
+                int beginX = (int)((float)i * (float)N * gridAspectScalex);
+			    int beginY = (int)((float)j * (float)N * gridAspectScaleY);
+                chunks[i,j] = new FieldChunk(beginX, beginY, chunkSize);
+            }
+        }
+    }
+
 	
 	void Update()
 	{
@@ -158,6 +201,8 @@ public class FluidFieldGenerator : MonoBehaviour
 		float mouseChangeY = previousScreenPos.y-screenPos.y;
 		previousScreenPos = screenPos;
 		
+		int chunkSize = N / ChunkFieldN;
+		
 		int mouseIterations = 10;
 		for(int i = 0; i < mouseIterations; ++i)
 		{
@@ -168,6 +213,11 @@ public class FluidFieldGenerator : MonoBehaviour
 			
 			int xCell =  (int)(curScreenPosx * N);
 			int yCell =  (int)(curScreenPosy * N);
+			
+			int xChunk = (int)(xCell / chunkSize);
+			int yChunk = (int)(yCell / chunkSize);
+			if(xChunk >= 0 && xChunk < ChunkFieldN && yChunk >= 0 && yChunk < ChunkFieldN)
+            	chunks[xChunk, yChunk].mouseTime += 2;
 			
             if (MouseFingerDown == 0)
 			{
@@ -206,9 +256,29 @@ public class FluidFieldGenerator : MonoBehaviour
 		float viscosity = 0.000001f*visc;
 		float diff = 0.000001f*diffus;
 		
-        VelocityStep(viscosity, dt);
-        DensityStep(diff, dt);
+		float widthPerCell = camcam.GetScreenWidth() / (float)N;
+		float heightPerCell = camcam.GetScreenHeight() / (float)N;
+		
+		for (int i = 0; i < ChunkFieldN; ++i)
+        {
+            for (int j = 0; j < ChunkFieldN; ++j)
+            {
+                float chunkSizex = widthPerCell * chunks[i, j].fieldSize;
+                float chunkSizey = heightPerCell * chunks[i, j].fieldSize;
+
+                float xpos = chunks[i, j].fieldStartX * widthPerCell;
+                float ypos = chunks[i, j].fieldStartY * heightPerCell;
+				
+                chunks[i, j].mouseTime = 5;
+			}
+		}
+		
+		VelocityStep(viscosity, dt);
+		DensityStep(diff, dt);
     }
+	
+	
+	
 	
 	private void UpdateBlackHole(float x, float y, int radius, float velocitypower, float holePower, float goalValue, float dt, bool affectDensity)
 	{			
@@ -270,15 +340,26 @@ public class FluidFieldGenerator : MonoBehaviour
 	
     private void DensityStep(float diff, float dt)
     {
-        AddDensitySource(0.1f, dt);
-        Diffuse(0, prevDensityField, densityField, diff, dt);
-        AdvectDensity(0, dt);
-    }
-	
+		for (int i = 0; i < ChunkFieldN; ++i)
+        {
+            for (int j = 0; j < ChunkFieldN; ++j)
+            {
+				int startX = chunks[i,j].fieldStartX;
+				int startY = chunks[i,j].fieldStartY;
+				int NCOUNT = chunks[i,j].fieldSize;
+				
+				AddDensitySource(startX, startY, NCOUNT, InkClearRate*0.1f, dt);
+		        Diffuse(startX, startY, NCOUNT, 0, prevDensityField, densityField, diff, dt);
+				
+		        AdvectDensity(startX, startY, NCOUNT, 0, dt);
+			}
+		}
+    }	
+
 	public float SampleField(float[,] field, float xcoord, float ycoord)
 	{
 		int aX = (int)xcoord;
-		int aY = (int)ycoord;			
+		int aY = (int)ycoord;
 		float d0 = field[aX, aY];
 		float d1 = field[aX+1, aY];
 		float d2 = field[aX+1, aY+1];
@@ -294,21 +375,52 @@ public class FluidFieldGenerator : MonoBehaviour
 	}
 	
     private void VelocityStep(float visc, float dt)
-    {
-        AddSource(u, u0, dt);
-        AddSource(v, v0, dt);
-
-        Diffuse(1, u0, u, visc, dt);
-        Diffuse(2, v0, v, visc, dt);
-        
-        Project(u0, v0, u, v);
-
-        Advect(1, u, u0, u0, v0, dt);
-        Advect(2, v, v0, u0, v0, dt);
-        Project(u, v, u0, v0);
+    {		
+		/*
+		AddVelocitySources(0, 0, N, dt);		
+		Diffuse(0, 0, N, 1, u0, u, visc, dt);
+		Diffuse(0, 0, N, 2, v0, v, visc, dt);		
+		Project(0, 0, N, u0, v0, u, v);		
+		Advect(0, 0, N, 1, u, u0, u0, v0, dt);
+		Advect(0, 0, N, 2, v, v0, u0, v0, dt);		
+		Project(0, 0, N, u, v, u0, v0);		
+		return;
+		*/
+		
+		for (int i = 0; i < ChunkFieldN; ++i)
+        {
+            for (int j = 0; j < ChunkFieldN; ++j)
+            {
+				int startX = chunks[i,j].fieldStartX;
+				int startY = chunks[i,j].fieldStartY;
+				int NCOUNT = chunks[i,j].fieldSize;
+				
+				AddVelocitySources(startX, startY, NCOUNT, dt);
+				
+		        Diffuse(startX, startY, NCOUNT, 1, u0, u, visc, dt);
+		        Diffuse(startX, startY, NCOUNT, 2, v0, v, visc, dt);
+			}
+		}
+		
+		Project(0, 0, N, u0, v0, u, v);
+		
+		for (int i = 0; i < ChunkFieldN; ++i)
+        {
+            for (int j = 0; j < ChunkFieldN; ++j)
+            {				
+				int startX = chunks[i,j].fieldStartX;
+				int startY = chunks[i,j].fieldStartY;
+				int NCOUNT = chunks[i,j].fieldSize;
+				
+		        Advect(startX, startY, NCOUNT, 1, u, u0, u0, v0, dt);
+		        Advect(startX, startY, NCOUNT, 2, v, v0, u0, v0, dt);		
+			}
+		}
+		
+		Project(0, 0, N, u, v, u0, v0);			
     }
-
-    private void Diffuse(int b, float[,]x, float[,] x0, float diff, float dt)
+	
+    private void Diffuse(int startX, int startY, int NCOUNT, int b, float[,]x, float[,] x0, float diff, float dt)
     {
         int i, j, k;
         float a=dt*diff*N*N;
@@ -316,31 +428,37 @@ public class FluidFieldGenerator : MonoBehaviour
 
         for (k = 0; k < KCount; k++)
         {
-            for (i = 1; i <= N; i++)
+            for (i = 1; i <= NCOUNT; i++)
             {
-                for (j = 1; j <= N; j++)
+                for (j = 1; j <= NCOUNT; j++)
                 {
-                    x[i, j] = (x0[i, j] + a * (x[i - 1, j] + x[i + 1, j] + x[i, j - 1] + x[i, j + 1])) / divisor;
+					int idxI = startX+i;
+					int idxJ = startY+j;
+					
+                    x[idxI, idxJ] = (x0[idxI, idxJ] + a * (x[idxI - 1, idxJ] + x[idxI + 1, idxJ] + x[idxI, idxJ - 1] + x[idxI, idxJ + 1])) / divisor;
                 }
             }
         }
         
         SetBoundary(b, x);            
     }
-
-    private void Advect(int b, float[,] d, float[,] d0, float[,] inu, float[,] inv, float dt)
+	
+    private void Advect(int startX, int startY, int NCOUNT, int b, float[,] d, float[,] d0, float[,] inu, float[,] inv, float dt)
     {
         int i, j, j0, i1, j1;
         float x, y, s0, t0, s1, t1;
 
         float dt0 = dt*N;
 
-        for ( i=1 ; i<=N ; ++i )
+        for ( i=1 ; i<=NCOUNT ; ++i )
         {
-            for ( j=1 ; j<=N ; ++j )
+            for ( j=1 ; j<=NCOUNT ; ++j )
             {
-                x = i - dt0 * inu[i, j];
-                y = j - dt0 * inv[i, j];
+				int idxI = startX+i;
+				int idxJ = startY+j;
+				
+                x = idxI - dt0 * inu[idxI, idxJ];
+                y = idxJ - dt0 * inv[idxI, idxJ];
 
                 if (x<0.5) 
                     x=0.5f; 
@@ -362,26 +480,29 @@ public class FluidFieldGenerator : MonoBehaviour
                 t1 = y-j0; 
                 t0 = 1-t1;
 
-                d[i, j] = s0 * (t0 * d0[i, j] + t1 * d0[i0, j1]) + s1 * (t0 * d0[i1, j0] + t1 * d0[i1, j1]);
+                d[idxI, idxJ] = s0 * (t0 * d0[idxI, idxJ] + t1 * d0[i0, j1]) + s1 * (t0 * d0[i1, j0] + t1 * d0[i1, j1]);
             }
         }
 
         SetBoundary(b, d);
     }
 	
-	private void AdvectDensity(int b, float dt)
+	private void AdvectDensity(int startX, int startY, int NCOUNT, int b, float dt)
     {
         int i, j, j0, i1, j1;
         float x, y, s0, t0, s1, t1;
 
         float dt0 = dt*N;
 
-        for (i=1 ; i<=N ; ++i )
+        for (i=1 ; i<=NCOUNT ; ++i )
         {
-            for ( j=1 ; j<=N ; ++j )
+            for ( j=1 ; j<=NCOUNT ; ++j )
             {
-                x = i - dt0 * u[i, j];
-                y = j - dt0 * v[i, j];
+				int idxI = startX+i;
+				int idxJ = startY+j;
+				
+                x = idxI - dt0 * u[idxI, idxJ];
+                y = idxJ - dt0 * v[idxI, idxJ];
 
                 if (x<0.5) 
                     x=0.5f; 
@@ -403,109 +524,113 @@ public class FluidFieldGenerator : MonoBehaviour
                 t1 = y-j0; 
                 t0 = 1-t1;
 
-                float f = s0 * (t0 * prevDensityField[i, j] + t1 * prevDensityField[i0, j1]) + s1 * (t0 * prevDensityField[i1, j0] + t1 * prevDensityField[i1, j1]);
+                float f = s0 * (t0 * prevDensityField[idxI, idxJ] + t1 * prevDensityField[i0, j1]) + s1 * (t0 * prevDensityField[i1, j0] + t1 * prevDensityField[i1, j1]);
 				if(f>1)
 					f=1;
 				else if(f<0)
 					f=0;
-				densityField[i, j] = f;
+				densityField[idxI, idxJ] = f;
             }
         }
 
         SetBoundary(b, densityField);
-    }
-
-    private void Project(float[,] inu, float[,] inv, float[,] p, float[,] div)
+    }	
+	
+    private void Project(int startX, int startY, int NCOUNT, float[,] inu, float[,] inv, float[,] p, float[,] div)
     {
         int i, j, k;
-        float h = 1.0f / N;
-        for (i = 1; i <= N; i++)
+        float h = 1.0f / NCOUNT;
+			
+        for (i = 1; i <= NCOUNT; i++)
         {
-            for (j = 1; j <= N; j++)
+            for (j = 1; j <= NCOUNT; j++)
             {
-                div[i, j] = -0.5f * h * (inu[i + 1, j] - inu[i - 1, j] + inv[i, j + 1] - inv[i, j - 1]);
-                p[i, j] = 0;
+				int idxi = startX+i;
+				int idxj = startY+j;
+				
+                div[idxi, idxj] = -0.5f * h * (inu[idxi + 1, idxj] - inu[idxi - 1, idxj] + inv[idxi, idxj + 1] - inv[idxi, idxj - 1]);
+                p[idxi, idxj] = 0;
             }
         }
 
         SetBoundary(0, div);
         SetBoundary(0, p);
 
-        for (k = 0; k < 20; k++)
+        for (k = 0; k < PCount; k++)
         {
-            for (i = 1; i <= N; i++)
+            for (i = 1; i <= NCOUNT; i++)
             {
-                for (j = 1; j <= N; j++)
+                for (j = 1; j <= NCOUNT; j++)
                 {
-                    p[i, j] = (div[i, j] + p[i - 1, j] + p[i + 1, j] + p[i, j - 1] + p[i, j + 1]) / 4.0f;
+					int idxi = startX+i;
+					int idxj = startY+j;
+                    p[idxi, idxj] = (div[idxi, idxj] + p[idxi - 1, idxj] + p[idxi + 1, idxj] + p[idxi, idxj - 1] + p[idxi, idxj + 1]) / 4.0f;
                 }
             }
             SetBoundary(0, p);
         }
 
-        for (i = 1; i <= N; i++)
+        for (i = 1; i <= NCOUNT; i++)
         {
-            for (j = 1; j <= N; j++)
+            for (j = 1; j <= NCOUNT; j++)
             {
-                inu[i, j] -= 0.5f * N * (p[i + 1, j] - p[i - 1, j]);
-                inv[i, j] -= 0.5f * N * (p[i, j + 1] - p[i, j - 1]);
+				int idxi = startX+i;
+				int idxj = startY+j;
+                inu[idxi, idxj] -= 0.5f * NCOUNT * (p[idxi + 1, idxj] - p[idxi - 1, idxj]);
+                inv[idxi, idxj] -= 0.5f * NCOUNT * (p[idxi, idxj + 1] - p[idxi, idxj - 1]);
             }
         }
 
         SetBoundary(1, inu);
         SetBoundary(2, inv);
     }
-
-    private void AddSource(float[,] x, float[,] s, float dt)
-    {
-        int size = (N + 2) * (N + 2);
-        for(int i = 0; i < N1; ++i)
-		{
-			for(int j = 0; j < N1; ++j)
-			{
-				x[i,j] += s[i,j] * dt;
-			}
-		}
-    }
 	
-	private void AddVelocitySources(float dt)
+	private void AddVelocitySources(int startX, int startY, int NCOUNT, float dt)
     {	
-		for(int i = 0; i < N1; ++i)
+		for(int i = 0; i < NCOUNT; ++i)
 		{
-			for(int j = 0; j < N1; ++j)
+			for(int j = 0; j < NCOUNT; ++j)
 			{
-				u[i,j] += u0[i,j] * dt;
-				v[i,j] += v0[i,j] * dt;
+				int idxI = startX+i;
+				int idxJ = startY+j;				
+				
+				u[idxI,idxJ] += u0[idxI,idxJ] * dt;
+				v[idxI,idxJ] += v0[idxI,idxJ] * dt;
 			}
 		}
     }
 	
-	private void AddDensitySource(float removalRate, float dt)
+	private void AddDensitySource(int startX, int startY, int NCOUNT, float removalRate, float dt)
     {	
 		float mult = 1.0f - removalRate;
-		for(int i = 0; i < N1; ++i)
+		for(int i = 0; i < NCOUNT; ++i)
 		{
-			for(int j = 0; j < N1; ++j)
+			for(int j = 0; j < NCOUNT; ++j)
 			{
-				densityField[i,j] += prevDensityField[i,j] * dt;
-				densityField[i,j] *= mult;					
+				int idxI = startX+i;
+				int idxJ = startY+j;
+				
+				densityField[idxI, idxJ] += prevDensityField[idxI, idxJ] * dt;
+				densityField[idxI, idxJ] *= mult;					
 			}
 		}
     }
 	
     private void SetBoundary(int b, float[,] x)
-    {            
-        for (int i=1 ; i<=N ; i++ )
+    {
+        for (int i=1 ; i<=N ; ++i )
         {
-            x[0  ,i] = b==1 ? -x[1,i] : x[1,i];
-            x[N+1,i] = b==1 ? -x[N,i] : x[N,i];
-            x[i,0 ] = b==2 ? -x[i,1] : x[i,1];x[i,N+1] = b==2 ? -x[i,N] : x[i,N];
+            x[0  , i] 	= b == 1 ? -x[1, i] : x[1, i];
+            x[N+1, i] 	= b == 1 ? -x[N, i] : x[N, i];
+            
+			x[i, 0] 	= b == 2 ? -x[i, 1] : x[i, 1];
+			x[i, N+1] 	= b == 2 ? -x[i, N] : x[i, N];
         }
 
-        x[0  ,0 ] = 0.5f*(x[1,0  ]+x[0  ,1]);
-        x[0  ,N+1] = 0.5f*(x[1,N+1]+x[0  ,N]);
-        x[N+1,0] = 0.5f*(x[N,0  ]+x[N+1,1]);
-        x[N+1,N+1] = 0.5f*(x[N,N+1]+x[N+1,N ]);
+        x[0, 0] 	= 0.5f * (x[1, 0  ] + x[0, 1]);
+        x[0, N+1] 	= 0.5f * (x[1, N+1] + x[0, N]);
+        x[N,0] 		= 0.5f * (x[N, 0  ] + x[N+1, 1]);
+        x[N,N+1] 	= 0.5f * (x[N, N+1] + x[N+1, N]);
     }
 }
 
@@ -651,7 +776,7 @@ public class FieldVisualizer : MonoBehaviour
 				
 				byte horizontalVelocity = (byte)(255*(uval+vval));
 				//byte verticalVelocity = (byte)(255*vval);
-				byte densityColor = (byte)(255*dval);
+				byte densityColor = (byte)(255*dval+(uval+vval));
 				
 				int colorIdx = y*width+x;
 				
@@ -665,8 +790,6 @@ public class FieldVisualizer : MonoBehaviour
 				//vertices[colorIdx].z = densityColor*0.1f;
 			}
 		}
-		
-		
 		
 		//this.transform.parent = fluidField.transform;		
 		Mesh mesh = GetComponent<MeshFilter>().mesh;
