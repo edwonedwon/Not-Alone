@@ -8,7 +8,7 @@ public class PlayerScript : MonoBehaviour
 	private int mouseFingerDown = -1;		//neither!
 	private Vector2 lastMousePos = new Vector2(0,0);
 	
-	
+	private tk2dAnimatedSprite anim = null;
 	
 	public int MouseFingerDown()
 	{
@@ -18,7 +18,7 @@ public class PlayerScript : MonoBehaviour
 	
 	void Start()
 	{		
-
+		
 //		print("(start) touch with id: " + networkView.viewID);
 
 //		particlesPS = GameObject.Find("Particles").GetComponent<ParticleSystem>();
@@ -29,7 +29,8 @@ public class PlayerScript : MonoBehaviour
 	
 	void Update()
 	{
-		
+		if (anim == null)
+		anim = gameObject.GetComponent<tk2dAnimatedSprite>();	
 		
 	}
 	
@@ -75,9 +76,17 @@ public class PlayerScript : MonoBehaviour
 	
 	public void OnPlayerFingerDown (int finger, Vector2 pos)
 	{
+		anim.Play("touchBeginAnim");
+		anim.animationCompleteDelegate = animComplete;
 		mouseFingerDown = finger;	//either 0, or 1 i believe..
 		lastMousePos = pos;
 		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(lastMousePos.x, lastMousePos.y, zOffset));
+	}
+	
+	void animComplete (tk2dAnimatedSprite animSprite, int clipID) {
+		switch (clipID) {
+			case 2: animSprite.Play("touchLoopAnim");break;
+		}
 	}
 	
 	public void OnPlayerFingerMove (int finger, Vector2 pos)
@@ -89,7 +98,11 @@ public class PlayerScript : MonoBehaviour
 	
 	public void OnPlayerFingerUp (int finger, Vector2 pos, float timeHeldDown)
 	{
-		mouseFingerDown = -1;	//up!		
+		if (anim != null) 
+			anim.Play("touchEndAnim");
+//		anim.animationCompleteDelegate = null;
+		mouseFingerDown = -1;	//up!	
+//		Destroy (gameObject);
 	}
 	
 	
