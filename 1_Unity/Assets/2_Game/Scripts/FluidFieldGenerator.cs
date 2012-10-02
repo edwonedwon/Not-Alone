@@ -8,10 +8,10 @@ public class FluidFieldGenerator : MonoBehaviour
 	//public Texture2D heightMap;
 	public Material material;
 	
-	public int N = 128;
+	public int N = 96;
 	private int N1 = 0;
 	public int KCount = 3;
-	public int PCount = 10;
+	public int PCount = 3;
 	public float fluidFPS = 10.0f;
 	public float viscocity = 10;
 	public float density = 10;
@@ -20,10 +20,10 @@ public class FluidFieldGenerator : MonoBehaviour
 	public int MouseRadius = 5;
 	public float InkFlowFromMouse = 100;
 	public float VelocityFlowFromMouse = 10;	
-	
-	public int ChunkFieldN = 16;
-	public int VisualizerGridSize = 4;
-	public int VisualizerGridFieldGridDensity = 32;
+	 
+	public int ChunkFieldN = 8;
+	public int VisualizerGridSize = 2;
+	public int VisualizerGridFieldGridDensity = 64;
 	
 	//public float particleGridOffsets = 0.5f;
 	//public float initialParticleGridSize = 25.0f;
@@ -34,10 +34,21 @@ public class FluidFieldGenerator : MonoBehaviour
 	private float screenHeight = 0;
 	
 	private GameObject[,] fieldVisualizers = null;	    
-	private int MouseFingerDown = -1;
-	private Vector2 LastMousePos = new Vector2(0,0);
-	private Vector2 mouseDir = new Vector2(0,0);
-	private Vector3 previousScreenPos = new Vector3(0,0,0);
+	
+
+	public struct PlayerMouseDownInfo
+	{
+		public Vector2 MouseDirection;
+		public Vector3 previousScreenPos;
+		public float MousePower;
+		public GameObject player;
+		public PlayerScript playerScript;
+	}
+	
+	
+	PlayerMouseDownInfo[] ownerPlayerMouseInfo = new PlayerMouseDownInfo[2];
+	
+
 	
     public float[,] u;
     private float[,] u0;
@@ -99,7 +110,6 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
 	}
 	
-	
 	public void InitChunkFields()
     {
         chunks = new FieldChunk[ChunkFieldN, ChunkFieldN];
@@ -107,8 +117,7 @@ public class FluidFieldGenerator : MonoBehaviour
         float gridAspectScalex = (1.0f/(float)ChunkFieldN);
         float gridAspectScaleY = (1.0f/(float)ChunkFieldN);
 
-        int chunkSize = N / ChunkFieldN;
-		DebugStreamer.message = "chunk size: " + chunkSize.ToString();
+        int chunkSize = N / ChunkFieldN;;
         for (int i = 0; i < ChunkFieldN; ++i)
         {
             for (int j = 0; j < ChunkFieldN; ++j)
@@ -120,9 +129,23 @@ public class FluidFieldGenerator : MonoBehaviour
         }
     }
 
-	
 	void Update()
 	{
+		if(ownerPlayerMouseInfo[0].player == null)
+		{
+			ownerPlayerMouseInfo[0].player = GameObject.FindGameObjectWithTag("PLAYER1");
+			if(ownerPlayerMouseInfo[0].player != null)
+				ownerPlayerMouseInfo[0].playerScript = ownerPlayerMouseInfo[0].player.GetComponent<PlayerScript>();
+		}
+		
+		if(ownerPlayerMouseInfo[1].player == null)
+		{
+			ownerPlayerMouseInfo[1].player = GameObject.FindGameObjectWithTag("PLAYER2");
+			if(ownerPlayerMouseInfo[1].player != null)
+				ownerPlayerMouseInfo[1].playerScript = ownerPlayerMouseInfo[1].player.GetComponent<PlayerScript>();
+		
+		}
+		
 		Vector3 position = GetComponent<Transform>().position;
 		Vector3 scale = GetComponent<Transform>().localScale;
 		
@@ -137,9 +160,6 @@ public class FluidFieldGenerator : MonoBehaviour
 				fieldVisualizers[i, j].GetComponent<FieldVisualizer>().UpdateLookBasedOnFluid(this, N, VisualizerGridSize, VisualizerGridSize);
 			}
 		}
-		
-		//RenderFluids(0, 0, width, height, Camera.main, particles, dt);
-		//ps.SetParticles(particles, particles.Length);
 	}	
 	
     private void InitFields()
@@ -163,83 +183,70 @@ public class FluidFieldGenerator : MonoBehaviour
                 v[i,j] = v0[i,j] = 0.0f;
             }
 		}
-    }
-			
-	public void OnMouseDown(int finger, Vector2 pos)
+    }	 
+	
+	public void UpdateMouses(Camera camcam, float dt)
 	{
-		if(MouseFingerDown != finger)
-		{
-			LastMousePos.x = pos.x;
-			LastMousePos.y = pos.y;
+		for(int m = 0; m < 2; ++m)
+		{			
+			if(ownerPlayerMouseInfo[m].player == null)
+				continue;
 			
-			Vector3 worldPos = Camera.main.ScreenToWorldPoint(new Vector3(LastMousePos.x, LastMousePos.y, 0));
-			Vector3 screenPos = Camera.main.WorldToViewportPoint(worldPos);
-			previousScreenPos = screenPos;	
-		}
+			Vector3 worldPos = ownerPlayerMouseInfo[m].player.transform.position;
+			Vector3 screenPos = camcam.WorldToViewportPoint(worldPos);
+			
+			float mouseChangeX = ownerPlayerMouseInfo[m].previousScreenPos.x-screenPos.x;
+			float mouseChangeY = ownerPlayerMouseInfo[m].previousScreenPos.y-screenPos.y;
 		
-		MouseFingerDown = finger;
-		mouseDir.x = pos.x - LastMousePos.x;
-		mouseDir.y = pos.y - LastMousePos.y;
-		
-		LastMousePos.x = pos.x;
-		LastMousePos.y = pos.y;
+			ownerPlayerMouseInfo[m].previousScreenPos = screenPos;
+			
+			int chunkSize = N / ChunkFieldN;
+						
+			int mouseIterations = 10;
+			for(int i = 0; i < mouseIterations; ++i)
+			{
+				float p = (float)i / (float)(mouseIterations-1);
+				
+				float curScreenPosx = ownerPlayerMouseInfo[m].previousScreenPos.x + (mouseChangeX*p);
+				float curScreenPosy = ownerPlayerMouseInfo[m].previousScreenPos.y + (mouseChangeY*p);
+				
+				int xCell =  (int)(curScreenPosx * N);
+				int yCell =  (int)(curScreenPosy * N);
+				
+				int xChunk = (int)(xCell / chunkSize);
+				int yChunk = (int)(yCell / chunkSize);
+				if(xChunk >= 0 && xChunk < ChunkFieldN && yChunk >= 0 && yChunk < ChunkFieldN)
+	            	chunks[xChunk, yChunk].mouseTime += 2;
+				
+				ownerPlayerMouseInfo[m].MousePower = 10;
+				
+	            if (ownerPlayerMouseInfo[m].playerScript.mouseFingerDown == 0)
+				{
+					if(xCell >= 0 && xCell < N && yCell >= 0 && yCell < N)
+					{
+						u0[xCell, yCell] -= mouseChangeX * ownerPlayerMouseInfo[m].MousePower * 1024 * dt;
+						v0[xCell, yCell] -= mouseChangeY * ownerPlayerMouseInfo[m].MousePower * 768 * dt;
+					}
+	                //int mouseRadius = 10;
+					//float velPower = 50.0f;
+					///float goalVal = 0.0f;
+					//UpdateBlackHole(curScreenPosx, curScreenPosy, mouseRadius, velPower, mouseVectorPower, goalVal, dt, false);
+	            }
+				if(ownerPlayerMouseInfo[m].playerScript.mouseFingerDown == 1)
+				{				
+					//creates the mouse power!
+					int mouseRadius = MouseRadius;
+					float velPower = 0.0f;
+					float goalVal = 1.0f;
+					UpdateBlackHole(curScreenPosx, curScreenPosy, mouseRadius, velPower, ownerPlayerMouseInfo[m].MousePower, goalVal, dt, true);
+				}
+			}
+		}		
 	}
 	
-	public void OnMouseUp(int finger, Vector2 pos)
-	{
-		MouseFingerDown = -1;
-		LastMousePos.x = pos.x;
-		LastMousePos.y = pos.y;
-	}
-	 
     public void UpdateFluids(Vector3 position, Vector3 scale, Camera camcam, float visc, float diffus, float mousePower, float mouseVectorPower, float dt)
     {			
-		Vector3 worldPos = camcam.ScreenToWorldPoint(new Vector3(Input.mousePosition.x, Input.mousePosition.y, 0));
-		Vector3 screenPos = camcam.WorldToViewportPoint(worldPos);
-		
-		float mouseChangeX = previousScreenPos.x-screenPos.x;
-		float mouseChangeY = previousScreenPos.y-screenPos.y;
-		previousScreenPos = screenPos;
-		
-		int chunkSize = N / ChunkFieldN;
-		
-		int mouseIterations = 10;
-		for(int i = 0; i < mouseIterations; ++i)
-		{
-			float p = (float)i / (float)(mouseIterations-1);
-			
-			float curScreenPosx = previousScreenPos.x + (mouseChangeX*p);
-			float curScreenPosy = previousScreenPos.y + (mouseChangeY*p);
-			
-			int xCell =  (int)(curScreenPosx * N);
-			int yCell =  (int)(curScreenPosy * N);
-			
-			int xChunk = (int)(xCell / chunkSize);
-			int yChunk = (int)(yCell / chunkSize);
-			if(xChunk >= 0 && xChunk < ChunkFieldN && yChunk >= 0 && yChunk < ChunkFieldN)
-            	chunks[xChunk, yChunk].mouseTime += 2;
-			
-            if (MouseFingerDown == 0)
-			{
-				if(xCell >= 0 && xCell < N && yCell >= 0 && yCell < N)
-				{
-					u0[xCell, yCell] += mouseDir.x * mouseVectorPower * dt;
-					v0[xCell, yCell] += mouseDir.y * mouseVectorPower * dt;
-				}
-                //int mouseRadius = 10;
-				//float velPower = 50.0f;
-				///float goalVal = 0.0f;
-				//UpdateBlackHole(curScreenPosx, curScreenPosy, mouseRadius, velPower, mouseVectorPower, goalVal, dt, false);
-            }
-			else if(MouseFingerDown == 1)
-			{				
-				//creates the mouse power!
-				int mouseRadius = MouseRadius;
-				float velPower = 0.0f;
-				float goalVal = 1.0f;
-				UpdateBlackHole(curScreenPosx, curScreenPosy, mouseRadius, velPower, mousePower, goalVal, dt, true);
-			}
-		}
+		UpdateMouses(camcam, dt);
 		
 		//ink-hole!
 		{
@@ -277,9 +284,6 @@ public class FluidFieldGenerator : MonoBehaviour
 		DensityStep(diff, dt);
     }
 	
-	
-	
-	
 	private void UpdateBlackHole(float x, float y, int radius, float velocitypower, float holePower, float goalValue, float dt, bool affectDensity)
 	{			
 		float centerXCell =  x * N;
@@ -314,7 +318,7 @@ public class FluidFieldGenerator : MonoBehaviour
 						directionX = 1.0f/(float)diffx;
 						
 					}
-					if(diffy != 0)
+					if(diffy != 0) 
 					{
 						directionY = 1.0f/(float)diffy;
 						
@@ -325,7 +329,7 @@ public class FluidFieldGenerator : MonoBehaviour
 					
 					if(affectDensity)
 					{
-						float a = densityField[xCell, yCell];//SampleField(densityField, fxCell, fyCell);
+						float a = SampleField(densityField, fxCell, fyCell);
 						float b = goalValue;
 						float difference = b-a;
 						float change = difference * (holePower*dt*dt);				
@@ -785,8 +789,8 @@ public class FieldVisualizer : MonoBehaviour
 				//particles[colorIdx].lifetime += dt;
 				//particles[colorIdx].velocity = new Vector3(uval*100,-vval*100,0);
 				//particles[colorIdx].position += particles[colorIdx].velocity*dt;					
-								
-				vertColors[colorIdx] = new Color32(densityColor, horizontalVelocity, 15, 255);
+				
+				vertColors[colorIdx] = new Color32(densityColor, horizontalVelocity, 0, 255);
 				//vertices[colorIdx].z = densityColor*0.1f;
 			}
 		}
