@@ -18,13 +18,10 @@ public class PlayerScript : MonoBehaviour
 	
 	void Start()
 	{		
-
-//		print("(start) touch with id: " + networkView.viewID);
-
-//		particlesPS = GameObject.Find("Particles").GetComponent<ParticleSystem>();
-//		particlesTF = GameObject.Find("Particles").GetComponent<Transform>();
-//		
-//		particlesPS.particleSystem.enableEmission = false;
+		//print("(start) touch with id: " + networkView.viewID);
+		//particlesPS = GameObject.Find("Particles").GetComponent<ParticleSystem>();
+		//particlesTF = GameObject.Find("Particles").GetComponent<Transform>();//		
+		//particlesPS.particleSystem.enableEmission = false;
 	}
 	
 	void Update()
