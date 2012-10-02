@@ -28,13 +28,8 @@ public class FluidFieldGenerator : MonoBehaviour
 	//public float particleGridOffsets = 0.5f;
 	//public float initialParticleGridSize = 25.0f;
 	
-	private Vector2 gridAspectScale = new Vector2(1,1);
-	
-	private float screenWidth = 0;
-	private float screenHeight = 0;
-	
+	private Vector2 gridAspectScale = new Vector2(1,1);	
 	private GameObject[,] fieldVisualizers = null;	    
-	
 
 	public struct PlayerMouseDownInfo
 	{
@@ -86,11 +81,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	private void InitVisualizerField()
 	{
-		screenHeight = (2*Camera.main.orthographicSize);
-  		screenWidth = (screenHeight*Camera.main.aspect);
-		
 		gridAspectScale = new Vector2(1.0f/(float)VisualizerGridSize, 1.0f/(float)VisualizerGridSize);
-		
 		fieldVisualizers = new GameObject[VisualizerGridSize,VisualizerGridSize];
 		
 		for(int i = 0; i < VisualizerGridSize; ++i)
@@ -294,6 +285,30 @@ public class FluidFieldGenerator : MonoBehaviour
 		VelocityStep(viscosity, dt);
 		DensityStep(diff, dt);
     }
+	
+	
+	public void UpdateBasedOnBlackHole(BlackHoleScript bhole)
+	{
+		
+		Camera camcam = Camera.main;
+		float cameraAspect = camcam.aspect;
+		float screenWidth = camcam.GetScreenWidth()-1;
+		float screenHeight = camcam.GetScreenHeight()-1;
+		
+		float dt = 1.0f / fluidFPS;
+		
+		Vector3 bholePos = bhole.transform.position;		
+		Vector3 screenPos = camcam.WorldToScreenPoint(bholePos);
+		screenPos = camcam.ScreenToViewportPoint(screenPos);
+		
+		int radius = bhole.radius;		
+		float velocityPower = bhole.velocityPower;
+		float holePower = bhole.holePower;
+		float goalValue = bhole.inkSpit;		
+		
+		UpdateBlackHole(screenPos.x, screenPos.y, radius, velocityPower, holePower, goalValue, dt, true);
+	}
+	
 	
 	private void UpdateBlackHole(float x, float y, int radius, float velocitypower, float holePower, float goalValue, float dt, bool affectDensity)
 	{			
@@ -650,8 +665,6 @@ public class FluidFieldGenerator : MonoBehaviour
 }
 
 
-
-
 public class FieldVisualizer : MonoBehaviour
 {
 	private int width = 32;
@@ -664,9 +677,9 @@ public class FieldVisualizer : MonoBehaviour
 	//private ParticleSystem ps = null;
 	//private UnityEngine.ParticleSystem.Particle[] particles = null;
 	
+	int N = 0;
 	int beginXIdx = 0;
 	int beginYIdx = 0;
-	int N = 0;
 	Vector2 gridAspect;
 	
 	FluidFieldGenerator field;
@@ -704,7 +717,7 @@ public class FieldVisualizer : MonoBehaviour
 		float screenHeight = camcam.GetScreenHeight()-1;
 		
 		camcam.orthographicSize = screenHeight / 2.0f;
-		DebugStreamer.message = "width/height: " + screenWidth.ToString() + "/" + screenHeight.ToString() + " : " + cameraAspect.ToString();
+		//DebugStreamer.message = "width/height: " + screenWidth.ToString() + "/" + screenHeight.ToString() + " : " + cameraAspect.ToString();
 		
 		float screenWidthPerBlockX = screenWidth * gridAspectScale.x;
 		float screenWidthPerBlockY = screenHeight * gridAspectScale.y;
