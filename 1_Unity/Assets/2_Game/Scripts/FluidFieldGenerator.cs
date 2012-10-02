@@ -785,8 +785,8 @@ public class FieldVisualizer : MonoBehaviour
 				//particles[colorIdx].lifetime += dt;
 				//particles[colorIdx].velocity = new Vector3(uval*100,-vval*100,0);
 				//particles[colorIdx].position += particles[colorIdx].velocity*dt;					
-				
-				vertColors[colorIdx] = new Color32(densityColor, horizontalVelocity, 0, 255);
+								
+				vertColors[colorIdx] = new Color32(densityColor, horizontalVelocity, 15, 255);
 				//vertices[colorIdx].z = densityColor*0.1f;
 			}
 		}
