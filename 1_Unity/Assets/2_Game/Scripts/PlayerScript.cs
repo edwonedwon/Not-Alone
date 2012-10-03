@@ -15,6 +15,8 @@ public class PlayerScript : MonoBehaviour
 	private BlackHoleScript blackHole = null;
 	private float previousMangle = 0.0f;
 	
+	private tk2dAnimatedSprite touchAnim;
+	
 	public int MouseFingerDown()
 	{
 		return mouseFingerDown;
@@ -23,6 +25,10 @@ public class PlayerScript : MonoBehaviour
 	
 	void Start()
 	{		
+		
+		touchAnim = GetComponent<tk2dAnimatedSprite>();
+		touchAnim.animationCompleteDelegate = AnimationComplete;
+		
 		//print("(start) touch with id: " + networkView.viewID);
 		//particlesPS = GameObject.Find("Particles").GetComponent<ParticleSystem>();
 		//particlesTF = GameObject.Find("Particles").GetComponent<Transform>();//		
@@ -144,6 +150,9 @@ public class PlayerScript : MonoBehaviour
 	public void OnPlayerFingerDown (int finger, Vector2 pos)
 	{
 		
+		// play start animation
+		touchAnim.Play("touchBeginAnim");
+		
 		currentMousePoints.Add(pos);
 		lastMousePos = pos;
 		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(lastMousePos.x, lastMousePos.y, zOffset));
@@ -163,12 +172,22 @@ public class PlayerScript : MonoBehaviour
 	
 	public void OnPlayerFingerUp (int finger, Vector2 pos, float timeHeldDown)
 	{
+		// play end animation
+		if (touchAnim != null)
+			touchAnim.Play("touchEndAnim");
+
 		mouseIsMovingWhileDown = false;
 		mouseFingerDown = -1;	//up!
-		
-		
 		previousMangle = 0;
 		currentMousePoints.Clear();
+	}
+	
+	// plays the looping animation after the begin animation ends
+	public void AnimationComplete (tk2dAnimatedSprite touchAnim, int clipId) {
+		switch (clipId) {
+		case 2:
+			touchAnim.Play("touchLoopAnim"); break;
+		}
 	}
 	
 	
