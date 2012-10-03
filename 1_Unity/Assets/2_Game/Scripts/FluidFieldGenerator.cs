@@ -25,6 +25,8 @@ public class FluidFieldGenerator : MonoBehaviour
 	public int VisualizerGridSize = 2;
 	public int VisualizerGridFieldGridDensity = 64;
 	
+	public bool UseThreading = false;
+	
 	//public float particleGridOffsets = 0.5f;
 	//public float initialParticleGridSize = 25.0f;
 	
@@ -249,19 +251,7 @@ public class FluidFieldGenerator : MonoBehaviour
     public void UpdateFluids(Vector3 position, Vector3 scale, Camera camcam, float visc, float diffus, float mousePower, float mouseVectorPower, float dt)
     {			
 		UpdateMouses(camcam, dt);
-		
-		//ink-hole!
-		{
-			 
-			float inkHoleX = 0.5f;
-			float inkHoleY = 0.5f;		//right in the middle!
-			int blackHoleRadius = 10;
-			float velocityPower = 90.0f;
-			float holePower = 100.0f;
-			float goalValue = 0.0f;
-			//UpdateBlackHole(inkHoleX, inkHoleY, blackHoleRadius, velocityPower, holePower, goalValue, dt, true);
-		}
-		
+
 		float viscosity = 0.000001f*visc;
 		float diff = 0.000001f*diffus;
 		
@@ -282,8 +272,6 @@ public class FluidFieldGenerator : MonoBehaviour
 			}
 		}
 		
-		
-		
 		VelocityStep(viscosity, dt);
 		DensityStep(diff, dt);
     }
@@ -291,7 +279,6 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public void UpdateBasedOnBlackHole(BlackHoleScript bhole)
 	{
-		
 		Camera camcam = Camera.main;
 		float cameraAspect = camcam.aspect;
 		float screenWidth = camcam.GetScreenWidth()-1;
@@ -385,9 +372,12 @@ public class FluidFieldGenerator : MonoBehaviour
             {
 				int startX = chunks[i,j].fieldStartX;
 				int startY = chunks[i,j].fieldStartY;
-				int NCOUNT = chunks[i,j].fieldSize;				
-				System.Threading.ThreadPool.QueueUserWorkItem(new FluidUpdateWorker(this, diff, dt, i, j, startX, startY, NCOUNT).ThreadDiffusionStep);	
-				//UpdateDensityStep(diff, dt, i, j, NCOUNT, startX, startY);
+				int NCOUNT = chunks[i,j].fieldSize;	
+				
+				if(UseThreading)
+					System.Threading.ThreadPool.QueueUserWorkItem(new FluidUpdateWorker(this, diff, dt, i, j, startX, startY, NCOUNT).ThreadDiffusionStep);	
+				else
+					UpdateDensityStep(diff, dt, i, j, NCOUNT, startX, startY);
 			}
 		}
 		//FluidUpdateWorker.AllWorkersCompleted.WaitOne();
@@ -439,8 +429,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
 		
 		//FluidUpdateWorker.AllWorkersCompleted.WaitOne();
-		Project(0, 0, N, u0, v0, u, v);
-		
+		Project(0, 0, N, u0, v0, u, v);		
 		
 		for (int i = 0; i < ChunkFieldN; ++i)
         {
@@ -737,6 +726,10 @@ public class FluidFieldGenerator : MonoBehaviour
 }
 
 
+
+
+
+
 public class FieldVisualizer : MonoBehaviour
 {
 	private int width = 32;
@@ -749,12 +742,12 @@ public class FieldVisualizer : MonoBehaviour
 	//private ParticleSystem ps = null;
 	//private UnityEngine.ParticleSystem.Particle[] particles = null;
 	
-	int N = 0;
-	int beginXIdx = 0;
-	int beginYIdx = 0;
-	Vector2 gridAspect;
+	private int N = 0;
+	private int beginXIdx = 0;
+	private int beginYIdx = 0;
+	private Vector2 gridAspect;
 	
-	FluidFieldGenerator field;
+	private FluidFieldGenerator field;
 	
 	public FieldVisualizer()
 	{
@@ -860,21 +853,23 @@ public class FieldVisualizer : MonoBehaviour
 		//ps = GameObject.Find("fluid particles").GetComponent<UnityEngine.ParticleSystem>();
 		//particles = new UnityEngine.ParticleSystem.Particle[arraySize];
 	}
-
+		
 	public void UpdateLookBasedOnFluid(FluidFieldGenerator fluidField, float N, float vertDivsX, float vertDivsY)
 	{
         float sw = width-1;
         float sh = height-1;
 		
-		for (int y=0;y<height; ++y)
-		{				
-			for (int x=0;x<width; ++x)
+		for (int y=0; y < height; ++y)
+		{		
+			
+			float yperc = (float)y / sh;
+			float fycord = beginYIdx + (yperc * N) / vertDivsY;
+			int colorIdx = y*width;
+			
+			for (int x=0; x < width; ++x)
 			{				
 				float xperc = (float)x / sw;
-				float yperc = (float)y / sh;
-				
-				float fxcord = beginXIdx + (xperc * N) / vertDivsX;
-				float fycord = beginYIdx + (yperc * N) / vertDivsY;
+				float fxcord = beginXIdx + (xperc * N) / vertDivsX;				
 				
 				float uval = Math.Min (1, Math.Abs (fluidField.SampleField(fluidField.u, fxcord, fycord))*1);
                 float vval = Math.Min (1, Math.Abs (fluidField.SampleField(fluidField.v, fxcord, fycord))*1);
@@ -884,20 +879,17 @@ public class FieldVisualizer : MonoBehaviour
 				//byte verticalVelocity = (byte)(255*vval);
 				byte densityColor = (byte)(255*dval+(uval+vval));
 				
-				int colorIdx = y*width+x;
-				
 				//particles[colorIdx].color = new Color32(72, 194, 178, 0);
 				//particles[colorIdx].size = this.initialParticleGridSize;
 				//particles[colorIdx].lifetime += dt;
 				//particles[colorIdx].velocity = new Vector3(uval*100,-vval*100,0);
 				//particles[colorIdx].position += particles[colorIdx].velocity*dt;					
 				
-				vertColors[colorIdx] = new Color32(densityColor, horizontalVelocity, 0, 255);
+				vertColors[colorIdx+x] = new Color32(densityColor, horizontalVelocity, 0, 255);
 				//vertices[colorIdx].z = densityColor*0.1f;
 			}
 		}
 		
-		//this.transform.parent = fluidField.transform;		
 		Mesh mesh = GetComponent<MeshFilter>().mesh;
 		mesh.colors32 = vertColors;
 		mesh.vertices = vertPositions;
