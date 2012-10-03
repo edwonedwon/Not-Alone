@@ -282,6 +282,8 @@ public class FluidFieldGenerator : MonoBehaviour
 			}
 		}
 		
+		
+		
 		VelocityStep(viscosity, dt);
 		DensityStep(diff, dt);
     }
@@ -368,6 +370,13 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
 	}
 	
+	public void UpdateDensityStep(float diff, float dt, int chunkX, int chunkY, int NCOUNT, int startX, int startY)
+	{
+		AddDensitySource(startX, startY, NCOUNT, InkClearRate*0.1f, dt);
+		Diffuse(startX, startY, NCOUNT, 0, prevDensityField, densityField, diff, dt);
+		AdvectDensity(startX, startY, NCOUNT, 0, dt);
+	}
+	
     private void DensityStep(float diff, float dt)
     {
 		for (int i = 0; i < ChunkFieldN; ++i)
@@ -376,15 +385,13 @@ public class FluidFieldGenerator : MonoBehaviour
             {
 				int startX = chunks[i,j].fieldStartX;
 				int startY = chunks[i,j].fieldStartY;
-				int NCOUNT = chunks[i,j].fieldSize;
-				
-				AddDensitySource(startX, startY, NCOUNT, InkClearRate*0.1f, dt);
-		        Diffuse(startX, startY, NCOUNT, 0, prevDensityField, densityField, diff, dt);
-				
-		        AdvectDensity(startX, startY, NCOUNT, 0, dt);
+				int NCOUNT = chunks[i,j].fieldSize;				
+				System.Threading.ThreadPool.QueueUserWorkItem(new FluidUpdateWorker(this, diff, dt, i, j, startX, startY, NCOUNT).ThreadDiffusionStep);	
+				//UpdateDensityStep(diff, dt, i, j, NCOUNT, startX, startY);
 			}
 		}
-    }	
+		//FluidUpdateWorker.AllWorkersCompleted.WaitOne();
+    }
 
 	public float SampleField(float[,] field, float xcoord, float ycoord)
 	{
@@ -404,18 +411,36 @@ public class FluidFieldGenerator : MonoBehaviour
 		return ((1.0f-(f))*(v0)+(f)*(v1));
 	}
 	
+	public void UpdateVelocityFieldStep_1(float visc, float dt, int chunkX, int chunkY, int NCOUNT, int startX, int startY)
+	{
+		AddVelocitySources(startX, startY, NCOUNT, dt);
+        Diffuse(startX, startY, NCOUNT, 1, u0, u, visc, dt);
+        Diffuse(startX, startY, NCOUNT, 2, v0, v, visc, dt);		
+	}
+	
+	public void UpdateVelocityFieldStep_2(float visc, float dt, int chunkX, int chunkY, int NCOUNT, int startX, int startY)
+	{
+		Advect(startX, startY, NCOUNT, 1, u, u0, u0, v0, dt);
+		Advect(startX, startY, NCOUNT, 2, v, v0, u0, v0, dt);			
+	}
+	
     private void VelocityStep(float visc, float dt)
-    {		
-		/*
-		AddVelocitySources(0, 0, N, dt);		
-		Diffuse(0, 0, N, 1, u0, u, visc, dt);
-		Diffuse(0, 0, N, 2, v0, v, visc, dt);		
-		Project(0, 0, N, u0, v0, u, v);		
-		Advect(0, 0, N, 1, u, u0, u0, v0, dt);
-		Advect(0, 0, N, 2, v, v0, u0, v0, dt);		
-		Project(0, 0, N, u, v, u0, v0);		
-		return;
-		*/
+    {			
+		for (int i = 0; i < ChunkFieldN; ++i)
+        {
+            for (int j = 0; j < ChunkFieldN; ++j)
+            {
+				int startX = chunks[i,j].fieldStartX;
+				int startY = chunks[i,j].fieldStartY;
+				int NCOUNT = chunks[i,j].fieldSize;
+				UpdateVelocityFieldStep_1(visc, dt, i, j, NCOUNT, startX, startY);
+				//System.Threading.ThreadPool.QueueUserWorkItem(new FluidUpdateWorker(this, visc, dt, i, j, startX, startY, NCOUNT).VelocityStep1);			
+			}
+		}
+		
+		//FluidUpdateWorker.AllWorkersCompleted.WaitOne();
+		Project(0, 0, N, u0, v0, u, v);
+		
 		
 		for (int i = 0; i < ChunkFieldN; ++i)
         {
@@ -425,30 +450,77 @@ public class FluidFieldGenerator : MonoBehaviour
 				int startY = chunks[i,j].fieldStartY;
 				int NCOUNT = chunks[i,j].fieldSize;
 				
-				AddVelocitySources(startX, startY, NCOUNT, dt);
-				
-		        Diffuse(startX, startY, NCOUNT, 1, u0, u, visc, dt);
-		        Diffuse(startX, startY, NCOUNT, 2, v0, v, visc, dt);
+				UpdateVelocityFieldStep_2(visc, dt, i, j, NCOUNT, startX, startY);
+				//System.Threading.ThreadPool.QueueUserWorkItem(new FluidUpdateWorker(this, visc, dt, i, j, startX, startY, NCOUNT).VelocityStep2);	
 			}
 		}
 		
-		Project(0, 0, N, u0, v0, u, v);
-		
-		for (int i = 0; i < ChunkFieldN; ++i)
-        {
-            for (int j = 0; j < ChunkFieldN; ++j)
-            {				
-				int startX = chunks[i,j].fieldStartX;
-				int startY = chunks[i,j].fieldStartY;
-				int NCOUNT = chunks[i,j].fieldSize;
-				
-		        Advect(startX, startY, NCOUNT, 1, u, u0, u0, v0, dt);
-		        Advect(startX, startY, NCOUNT, 2, v, v0, u0, v0, dt);		
-			}
-		}
-		
+		//FluidUpdateWorker.AllWorkersCompleted.WaitOne();
 		Project(0, 0, N, u, v, u0, v0);			
     }
+	
+	public class FluidUpdateWorker
+    {
+        FluidFieldGenerator fluid;
+		
+		int chunkX;
+		int chunkY;
+		
+		int startIdxX;
+		int startIdxY;
+		
+		float frame_dt;		
+		int NCount = 0;		
+		float viscoscity = 0.0f;
+		
+        internal static readonly System.Threading.EventWaitHandle AllWorkersCompleted = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset);
+        private static int numberOfWorkers = 0;		
+		
+        public FluidUpdateWorker(FluidFieldGenerator f, float visc, float dt, int chnkX, int chnkY, int idxx, int idxy, int NCOUNT)
+        {
+            fluid = f;
+			viscoscity = visc;
+			frame_dt = dt;
+			chunkX = chnkX;
+			chunkY = chnkY;
+			startIdxX = idxx;
+			startIdxY = idxy;
+			NCount = NCOUNT;
+            System.Threading.Interlocked.Increment(ref numberOfWorkers);
+        }
+		
+        public void ThreadDiffusionStep(object o)
+        {
+            fluid.UpdateDensityStep(viscoscity, frame_dt, chunkX, chunkY, NCount, startIdxX, startIdxY);
+            
+			if (System.Threading.Interlocked.Decrement(ref numberOfWorkers) == 0)
+            {
+                AllWorkersCompleted.Set();
+            }
+		}
+		
+        public void ThreadVelocityStep1(object o)
+        {
+            fluid.UpdateVelocityFieldStep_1(viscoscity, frame_dt, chunkX, chunkY, NCount, startIdxX, startIdxY);
+            
+			if (System.Threading.Interlocked.Decrement(ref numberOfWorkers) == 0)
+            {
+                AllWorkersCompleted.Set();
+            }
+        }
+		
+		public void ThreadVelocityStep2(object o)
+        {
+            fluid.UpdateVelocityFieldStep_2(viscoscity, frame_dt, chunkX, chunkY, NCount, startIdxX, startIdxY);
+            
+			if (System.Threading.Interlocked.Decrement(ref numberOfWorkers) == 0)
+            {
+                AllWorkersCompleted.Set();
+            }
+        }
+	}
+	
+	
 	
     private void Diffuse(int startX, int startY, int NCOUNT, int b, float[,]x, float[,] x0, float diff, float dt)
     {
