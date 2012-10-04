@@ -17,7 +17,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	public float density = 10;
 	
 	public float InkClearRate = 0.5f;
-	public int MouseRadius = 5;
+	public float MouseRadius = 150;
 	public float InkFlowFromMouse = 100;
 	public float VelocityFlowFromMouse = 10;	
 	 
@@ -30,7 +30,9 @@ public class FluidFieldGenerator : MonoBehaviour
 	//public float particleGridOffsets = 0.5f;
 	//public float initialParticleGridSize = 25.0f;
 	
-	private Vector2 gridAspectScale = new Vector2(1,1);	
+	private Vector2 gridAspectScale = new Vector2(1,1);
+	private Vector2 screenAspectScale = new Vector2(1,1);
+	
 	private GameObject[,] fieldVisualizers = null;	    
 
 	public struct PlayerMouseDownInfo
@@ -42,8 +44,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		public float MousePower;
 		public GameObject player;
 		public PlayerScript playerScript;
-	}
-	
+	}	
 	
 	PlayerMouseDownInfo[] ownerPlayerMouseInfo = new PlayerMouseDownInfo[2];
 	
@@ -85,6 +86,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	{
 		gridAspectScale = new Vector2(1.0f/(float)VisualizerGridSize, 1.0f/(float)VisualizerGridSize);
 		fieldVisualizers = new GameObject[VisualizerGridSize,VisualizerGridSize];
+		screenAspectScale = new Vector2(Camera.main.aspect, 1.0f/Camera.main.aspect);
 		
 		for(int i = 0; i < VisualizerGridSize; ++i)
 		{
@@ -106,16 +108,16 @@ public class FluidFieldGenerator : MonoBehaviour
     {
         chunks = new FieldChunk[ChunkFieldN, ChunkFieldN];
 
-        float gridAspectScalex = (1.0f/(float)ChunkFieldN);
-        float gridAspectScaleY = (1.0f/(float)ChunkFieldN);
+        float chunkAspectX = (1.0f/(float)ChunkFieldN);
+        float chunkAspectY = (1.0f/(float)ChunkFieldN);
 
         int chunkSize = N / ChunkFieldN;;
         for (int i = 0; i < ChunkFieldN; ++i)
         {
             for (int j = 0; j < ChunkFieldN; ++j)
             {
-                int beginX = (int)((float)i * (float)N * gridAspectScalex);
-			    int beginY = (int)((float)j * (float)N * gridAspectScaleY);
+                int beginX = (int)((float)i * (float)N * chunkAspectX);
+			    int beginY = (int)((float)j * (float)N * chunkAspectY);
                 chunks[i,j] = new FieldChunk(beginX, beginY, chunkSize);
             }
         }
@@ -151,7 +153,6 @@ public class FluidFieldGenerator : MonoBehaviour
 				fieldVisualizers[i, j].GetComponent<FieldVisualizer>().UpdateLookBasedOnFluid(this, N, VisualizerGridSize, VisualizerGridSize);
 			}
 		}
-		
 	}	
 	
     private void InitFields()
@@ -239,7 +240,7 @@ public class FluidFieldGenerator : MonoBehaviour
 				if(curMouseState == 1)
 				{				
 					//creates the mouse power!
-					int mouseRadius = MouseRadius;
+					float mouseRadius = MouseRadius;
 					float velPower = 0.0f;
 					float goalVal = 1.0f;
 					UpdateBlackHole(curScreenPosx, curScreenPosy, mouseRadius, velPower, mousePowerrr, goalVal, dt, true);
@@ -275,8 +276,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		VelocityStep(viscosity, dt);
 		DensityStep(diff, dt);
     }
-	
-	
+		
 	public void UpdateBasedOnBlackHole(BlackHoleScript bhole)
 	{
 		Camera camcam = Camera.main;
@@ -298,21 +298,33 @@ public class FluidFieldGenerator : MonoBehaviour
 		UpdateBlackHole(screenPos.x, screenPos.y, radius, velocityPower, holePower, goalValue, dt, true);
 	}
 	
-	
-	private void UpdateBlackHole(float x, float y, int radius, float velocitypower, float holePower, float goalValue, float dt, bool affectDensity)
+	private void UpdateBlackHole(float x, float y, float radius, float velocitypower, float holePower, float goalValue, float dt, bool affectDensity)
 	{			
+		if(radius < 1)
+			return;
+		
 		float centerXCell =  x * N;
         float centerYCell =  y * N;
 		
-		float hrX = radius * 0.5f;
-		float hrY = radius * 0.5f;
+		float pixelsPerSquareX = Camera.main.GetScreenWidth() / (float)N;
+		float pixelsPerSquareY = Camera.main.GetScreenHeight() / (float)N;
 		
-		for(float fy = -hrY; fy < hrY; fy+=1)
+		float hrX = (radius / pixelsPerSquareX) * 0.5f;
+		float hrY = (radius / pixelsPerSquareY) * 0.5f;
+		float maxRadius = (float)Math.Sqrt((hrX*hrX)+(hrY*hrY))*0.5f;
+		
+		for(float fy = -hrY; fy <= hrY; fy += 1)
 		{
-			for(float fx = -hrX; fx < hrX; fx+=1)
+			for(float fx = -hrX; fx <= hrX; fx += 1)
 			{
 				float fxCell = centerXCell+fx;
 				float fyCell = centerYCell+fy;
+				
+				float distanceX = Math.Abs(fxCell-centerXCell);
+				float distanceY = Math.Abs(fyCell-centerYCell);
+				float totalD = (float)Math.Sqrt((distanceX*distanceX)+(distanceY*distanceY));
+				if(totalD > maxRadius)
+					continue;
 				
 				int xCell = (int)(fxCell);
 				int yCell = (int)(fyCell);					
@@ -324,20 +336,14 @@ public class FluidFieldGenerator : MonoBehaviour
 
 					float directionX = centerXCell - xCell;
 					float directionY = centerYCell - yCell;
-						
+
 					int diffx = (int)(directionX);
 					int diffy = (int)(directionY);		
 					
 					if(diffx != 0)
-					{
 						directionX = 1.0f/(float)diffx;
-						
-					}
-					if(diffy != 0) 
-					{
+					if(diffy != 0)
 						directionY = 1.0f/(float)diffy;
-						
-					}						
 					
 					u0[xCell,yCell] += directionX*velocitypower*dt;
 					v0[xCell,yCell] += directionY*velocitypower*dt;
@@ -349,8 +355,7 @@ public class FluidFieldGenerator : MonoBehaviour
 						float difference = b-a;
 						float change = difference * (holePower*dt*dt);				
 						densityField[xCell, yCell] = goalValue;
-					}
-					
+					}					
 					//DebugStreamer.message = "field density: [" + xCell.ToString() + ", " + yCell.ToString() + "] : " + this.densityField[xCell, yCell].ToString();
 				}
 			}
@@ -372,7 +377,7 @@ public class FluidFieldGenerator : MonoBehaviour
             {
 				int startX = chunks[i,j].fieldStartX;
 				int startY = chunks[i,j].fieldStartY;
-				int NCOUNT = chunks[i,j].fieldSize;	
+				int NCOUNT = chunks[i,j].fieldSize;
 				
 				if(UseThreading)
 					System.Threading.ThreadPool.QueueUserWorkItem(new FluidUpdateWorker(this, diff, dt, i, j, startX, startY, NCOUNT).ThreadDiffusionStep);	
@@ -541,9 +546,9 @@ public class FluidFieldGenerator : MonoBehaviour
 
         float dt0 = dt*N;
 
-        for ( i=1 ; i<=NCOUNT ; ++i )
+        for (i = 1; i <= NCOUNT; ++i)
         {
-            for ( j=1 ; j<=NCOUNT ; ++j )
+            for (j = 1; j <= NCOUNT; ++j)
             {
 				int idxI = startX+i;
 				int idxJ = startY+j;
@@ -551,24 +556,24 @@ public class FluidFieldGenerator : MonoBehaviour
                 x = idxI - dt0 * inu[idxI, idxJ];
                 y = idxJ - dt0 * inv[idxI, idxJ];
 
-                if (x<0.5) 
-                    x=0.5f; 
-                if (x>N+0.5) 
-                    x=N+ 0.5f;                    
+                if (x<0.5)
+                    x=0.5f;
+                if (x>N+0.5)
+                    x=N+ 0.5f;
                 
-                if (y<0.5) 
-                    y=0.5f; 
-                if (y>N+0.5) 
-                    y=N+ 0.5f;
+                if (y<0.5f)
+                    y=0.5f;
+                if (y>N+0.5f)
+                    y=N+0.5f;
 
                 int i0 = (int)x;
                 i1 = i0 + 1;
 
-                j0=(int)y; 
-                j1=j0+1;
-                s1 = x-i0; 
-                s0 = 1-s1; 
-                t1 = y-j0; 
+                j0 = (int)y;
+                j1 = j0+1;
+                s1 = x-i0;
+                s0 = 1-s1;
+                t1 = y-j0;
                 t0 = 1-t1;
 
                 d[idxI, idxJ] = s0 * (t0 * d0[idxI, idxJ] + t1 * d0[i0, j1]) + s1 * (t0 * d0[i1, j0] + t1 * d0[i1, j1]);
@@ -585,9 +590,9 @@ public class FluidFieldGenerator : MonoBehaviour
 
         float dt0 = dt*N;
 
-        for (i=1 ; i<=NCOUNT ; ++i )
+        for (i = 1; i <= NCOUNT; ++i)
         {
-            for ( j=1 ; j<=NCOUNT ; ++j )
+            for (j = 1; j <= NCOUNT; ++j)
             {
 				int idxI = startX+i;
 				int idxJ = startY+j;
@@ -595,31 +600,30 @@ public class FluidFieldGenerator : MonoBehaviour
                 x = idxI - dt0 * u[idxI, idxJ];
                 y = idxJ - dt0 * v[idxI, idxJ];
 
-                if (x<0.5) 
-                    x=0.5f; 
-                if (x>N+0.5) 
-                    x=N+ 0.5f;                    
-                
-                if (y<0.5) 
-                    y=0.5f; 
-                if (y>N+0.5) 
-                    y=N+ 0.5f;
+                if (x<0.5)
+                    x=0.5f;
+                if (x>N+0.5f)
+                    x=N+0.5f;
+                if (y<0.5f)
+                    y=0.5f;
+                if (y>N+0.5)
+                    y=N+0.5f;
 
                 int i0 = (int)x;
                 i1 = i0 + 1;
 
-                j0=(int)y; 
-                j1=j0+1;
-                s1 = x-i0; 
-                s0 = 1-s1; 
-                t1 = y-j0; 
+                j0 = (int)y;
+                j1 = j0+1;
+                s1 = x-i0;
+                s0 = 1-s1;
+                t1 = y-j0;
                 t0 = 1-t1;
 
                 float f = s0 * (t0 * prevDensityField[idxI, idxJ] + t1 * prevDensityField[i0, j1]) + s1 * (t0 * prevDensityField[i1, j0] + t1 * prevDensityField[i1, j1]);
-				if(f>1)
-					f=1;
-				else if(f<0)
-					f=0;
+				//if(f>1)
+				//	f=1;
+				//else if(f<0)
+				//	f=0;
 				densityField[idxI, idxJ] = f;
             }
         }
@@ -636,9 +640,8 @@ public class FluidFieldGenerator : MonoBehaviour
         {
             for (j = 1; j <= NCOUNT; j++)
             {
-				int idxi = startX+i;
-				int idxj = startY+j;
-				
+				int idxi = startX+j;
+				int idxj = startY+i;				
                 div[idxi, idxj] = -0.5f * h * (inu[idxi + 1, idxj] - inu[idxi - 1, idxj] + inv[idxi, idxj + 1] - inv[idxi, idxj - 1]);
                 p[idxi, idxj] = 0;
             }
@@ -685,8 +688,8 @@ public class FluidFieldGenerator : MonoBehaviour
 				int idxI = startX+i;
 				int idxJ = startY+j;				
 				
-				u[idxI,idxJ] += u0[idxI,idxJ] * dt;
-				v[idxI,idxJ] += v0[idxI,idxJ] * dt;
+				u[idxI, idxJ] += u0[idxI, idxJ] * dt;
+				v[idxI, idxJ] += v0[idxI, idxJ] * dt;
 			}
 		}
     }
@@ -761,7 +764,7 @@ public class FieldVisualizer : MonoBehaviour
 		width = height = gridSize;
 		beginXIdx = bXIdx;
 		beginYIdx = bYIdx;
-		gridAspect = gridAspectScale;		
+		gridAspect = gridAspectScale;
 		
 		gameObject.transform.parent = fluidField.transform;
 		gameObject.AddComponent(typeof(MeshFilter));
@@ -825,7 +828,7 @@ public class FieldVisualizer : MonoBehaviour
 		mesh.vertices = vertPositions;
 		mesh.colors32 = vertColors;
 		mesh.uv = uv;
-	
+		
 		//indices
 		int[] triangles = new int[(height - 1) * (width - 1) * 6];
 		int index = 0;
@@ -860,8 +863,7 @@ public class FieldVisualizer : MonoBehaviour
         float sh = height-1;
 		
 		for (int y=0; y < height; ++y)
-		{		
-			
+		{
 			float yperc = (float)y / sh;
 			float fycord = beginYIdx + (yperc * N) / vertDivsY;
 			int colorIdx = y*width;
@@ -871,13 +873,13 @@ public class FieldVisualizer : MonoBehaviour
 				float xperc = (float)x / sw;
 				float fxcord = beginXIdx + (xperc * N) / vertDivsX;				
 				
-				float uval = Math.Min (1, Math.Abs (fluidField.SampleField(fluidField.u, fxcord, fycord))*1);
-                float vval = Math.Min (1, Math.Abs (fluidField.SampleField(fluidField.v, fxcord, fycord))*1);
-				float dval = fluidField.SampleField(fluidField.densityField, fxcord, fycord) * 0.5f;				
+				float uval = Math.Abs (fluidField.SampleField(fluidField.u, fxcord, fycord));
+                float vval = Math.Abs (fluidField.SampleField(fluidField.v, fxcord, fycord));
+				float dval = fluidField.SampleField(fluidField.densityField, fxcord, fycord);
 				
-				byte horizontalVelocity = (byte)(255*(uval+vval));
-				//byte verticalVelocity = (byte)(255*vval);
-				byte densityColor = (byte)(255*dval+(uval+vval));
+				byte horizontalVelocity = (byte)Math.Max(0, Math.Min(255, 255*(vval)));
+				byte verticalVelocity = (byte)Math.Max(0, Math.Min(255, 255*(uval)));
+				byte densityColor = (byte)Math.Max(0, Math.Min(255, 255*dval));
 				
 				//particles[colorIdx].color = new Color32(72, 194, 178, 0);
 				//particles[colorIdx].size = this.initialParticleGridSize;
@@ -885,7 +887,7 @@ public class FieldVisualizer : MonoBehaviour
 				//particles[colorIdx].velocity = new Vector3(uval*100,-vval*100,0);
 				//particles[colorIdx].position += particles[colorIdx].velocity*dt;					
 				
-				vertColors[colorIdx+x] = new Color32(densityColor, horizontalVelocity, 0, 255);
+				vertColors[colorIdx+x] = new Color32(densityColor, verticalVelocity, horizontalVelocity, 255);
 				//vertices[colorIdx].z = densityColor*0.1f;
 			}
 		}

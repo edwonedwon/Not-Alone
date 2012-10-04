@@ -35,28 +35,31 @@ public class PlayerScript : MonoBehaviour
 		//particlesPS.particleSystem.enableEmission = false;
 	}
 	
+	void OnEnable()
+	{
+		networkView.observed = this;
+	}
+	
+	void OnDisable()
+	{
+
+	}
+	
+	
 	void Update()
 	{
-		//DebugStreamer.message = "mouseIsMovingWhileDown: " + mouseIsMovingWhileDown.ToString();
-		
-		
 		if(blackHole == null)
 		{
 			GameObject go = GameObject.FindGameObjectWithTag("blackhole");
 			if(go != null)
 				blackHole = go.GetComponent<BlackHoleScript>();
-			
 		}
-		
 		
 		if(mouseIsMovingWhileDown && blackHole != null)
 		{
 			Camera camcam = Camera.main;
 			
-			
 			Vector3 blackHoleCenter = camcam.WorldToScreenPoint(blackHole.transform.position);
-			
-			//DebugStreamer.message = "currentMousePoints: " + currentMousePoints.Count.ToString();
 			
 			float compundedMangle = 0.0f;
             float totalmangle = 0.0f;
@@ -94,34 +97,19 @@ public class PlayerScript : MonoBehaviour
             }
 
             if(totalmangle < 0)
-                direction = -1;
+                direction = -1;			
 			
-			
-			blackHole.RotationSpeed += (totalmangle-previousMangle) * 0.1f;
+			blackHole.AddToRotationSpeed((totalmangle-previousMangle) * 0.1f);
 			previousMangle = totalmangle;
-			//DebugStreamer.message = "totalmangle: " + totalmangle.ToString();
 		}		
 	}
-	
-	#region Events
-	
-	void OnEnable()
-	{
-		networkView.observed = this;
-	}
-	
 	
 	public float ToDegrees(float radians)
 	{
 		return (float)(radians * (180.0 / 3.14159265359f));
 	}
 	
-	void OnDisable()
-	{
-
-	}
 	
-	#endregion
 	
 	
 	void OnSerializeNetworkView (BitStream stream, NetworkMessageInfo info)
@@ -179,23 +167,10 @@ public class PlayerScript : MonoBehaviour
 
 		mouseIsMovingWhileDown = false;
 		mouseFingerDown = -1;	//up!
+		
 		previousMangle = 0;
 		currentMousePoints.Clear();
 	}
 	
-	// plays the looping animation after the begin animation ends
-	public void AnimationComplete (tk2dAnimatedSprite touchAnim, int clipId) {
-		switch (clipId) {
-		case 2:
-			if (touchAnim != null)
-				touchAnim.Play("touchLoopAnim"); break;
-		}
-	}
-	
-	
-	
-	
-	
 	#endregion
-
 }
