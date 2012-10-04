@@ -20,7 +20,14 @@ public class BlackHoleScript : MonoBehaviour
 	public void AddToRotationSpeed(float additionalRot)
 	{
 		if(!shrinkAndDissapear)
-			RotationSpeed += additionalRot;
+			networkView.RPC ("SetRotationSpeed", RPCMode.All, (RotationSpeed+additionalRot));		
+	}
+	
+	[RPC]
+	void SetRotationSpeed(float newRotationSpeed)
+	{
+		DebugStreamer.message = "writing out rotation speed: " + newRotationSpeed.ToString();
+		RotationSpeed = newRotationSpeed;
 	}
 	
 	void Update()
@@ -48,16 +55,34 @@ public class BlackHoleScript : MonoBehaviour
 				this.transform.Rotate(Vector3.forward, Time.deltaTime * Mathf.Max(50, RotationSpeed));
 				
 				//RotationSpeed -= 25.0f * Time.deltaTime;
-				//DebugStreamer.message = "RotationSpeed: " + RotationSpeed.ToString();
+				
 				if(RotationSpeed < 0.0f)
 					shrinkAndDissapear = true;
 			}
 		}
 	}
 
+	
+	void OnSerializeNetworkView (BitStream stream, NetworkMessageInfo info)
+	{
+		/*
+		float rotSpeed = RotationSpeed;
+		if(stream.isWriting)
+		{			
+			stream.Serialize(ref rotSpeed);
+		}
+		else if(stream.isReading)
+		{
+			stream.Serialize(ref rotSpeed);
+		}
+		RotationSpeed = rotSpeed;
+	*/
+	}
+	
+	
 	void OnEnable()
 	{
-		
+		networkView.observed = this;
 	}
 	
 	void OnDisable()
