@@ -172,5 +172,14 @@ public class PlayerScript : MonoBehaviour
 		currentMousePoints.Clear();
 	}
 	
+	// plays the looping animation after the begin animation ends
+	public void AnimationComplete (tk2dAnimatedSprite touchAnim, int clipId) {
+		switch (clipId) {
+		case 2:
+			if (touchAnim != null)
+				touchAnim.Play("touchLoopAnim"); break;
+		}
+	}
+	
 	#endregion
 }
