@@ -26,7 +26,6 @@ public class BlackHoleScript : MonoBehaviour
 	[RPC]
 	void SetRotationSpeed(float newRotationSpeed)
 	{
-		DebugStreamer.message = "writing out rotation speed: " + newRotationSpeed.ToString();
 		RotationSpeed = newRotationSpeed;
 	}
 	

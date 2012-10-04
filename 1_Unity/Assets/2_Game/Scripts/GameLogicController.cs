@@ -5,7 +5,6 @@ public class GameLogicController : MonoBehaviour
 {
 	bool isPlayer1 = false;
 	
-	
 	public GameObject player1Prefab;
 	public GameObject player2Prefab;
 	
@@ -13,7 +12,7 @@ public class GameLogicController : MonoBehaviour
 	private GameObject player2 = null;	
 	
 	void Start()
-	{		
+	{
 	
 	}
 	
@@ -27,6 +26,13 @@ public class GameLogicController : MonoBehaviour
 
 	}
 	
+	
+	void CheckCurrentGameStateForNextLevel()
+	{
+		
+		
+	}
+	
 	void Update()
 	{
 		if(Network.isServer)
@@ -37,17 +43,18 @@ public class GameLogicController : MonoBehaviour
 				player1 = (GameObject)Network.Instantiate(player1Prefab, new Vector3(0,0,0), Quaternion.identity, 0);				
 				isPlayer1 = true;
 			}
+			
+			CheckCurrentGameStateForNextLevel();		
 		}
 		else if(Network.isClient)
 		{		
 			if(player2 == null)
 			{
-				DebugStreamer.message = "created player 2";
+				DebugStreamer.message = "created player 2"; 
 				player2 = (GameObject)Network.Instantiate(player2Prefab, new Vector3(0,0,0), Quaternion.identity, 0);
 				isPlayer1 = false;
 			}
 		}
-		
 		
 		//DebugStreamer.message = "in game logic..." + Time.realtimeSinceStartup.ToString();
 	}	
