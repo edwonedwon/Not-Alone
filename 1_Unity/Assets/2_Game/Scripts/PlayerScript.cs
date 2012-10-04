@@ -151,7 +151,8 @@ public class PlayerScript : MonoBehaviour
 	{
 		
 		// play start animation
-		touchAnim.Play("touchBeginAnim");
+		if (touchAnim != null)
+			touchAnim.Play("touchBeginAnim");
 		
 		currentMousePoints.Add(pos);
 		lastMousePos = pos;
@@ -186,7 +187,8 @@ public class PlayerScript : MonoBehaviour
 	public void AnimationComplete (tk2dAnimatedSprite touchAnim, int clipId) {
 		switch (clipId) {
 		case 2:
-			touchAnim.Play("touchLoopAnim"); break;
+			if (touchAnim != null)
+				touchAnim.Play("touchLoopAnim"); break;
 		}
 	}
 	

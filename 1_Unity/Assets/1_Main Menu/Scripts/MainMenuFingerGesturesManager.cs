@@ -31,9 +31,10 @@ public class MainMenuFingerGesturesManager : MonoBehaviour {
 		RaycastHit hit;
 		
 		Physics.Raycast(Camera.main.ScreenPointToRay(pos), out hit);
-		
-		if (hit.collider.gameObject == playButton) {
-			print ("play button");
+		if (hit.collider != null) {
+			if (hit.collider.gameObject == playButton) {
+				print ("play button");
+			}
 		}
 		
 	}
