@@ -39,14 +39,12 @@ public class PlayerScript : MonoBehaviour
 			GameObject go = GameObject.FindGameObjectWithTag("blackhole");
 			if(go != null)
 				blackHole = go.GetComponent<BlackHoleScript>();
-			
 		}
 		
 		
 		if(mouseIsMovingWhileDown && blackHole != null)
 		{
 			Camera camcam = Camera.main;
-			
 			
 			Vector3 blackHoleCenter = camcam.WorldToScreenPoint(blackHole.transform.position);
 			
@@ -91,7 +89,7 @@ public class PlayerScript : MonoBehaviour
                 direction = -1;
 			
 			
-			blackHole.RotationSpeed += (totalmangle-previousMangle) * 0.1f;
+			blackHole.AddToRotationSpeed((totalmangle-previousMangle) * 0.1f);
 			previousMangle = totalmangle;
 			//DebugStreamer.message = "totalmangle: " + totalmangle.ToString();
 		}		
