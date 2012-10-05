@@ -784,7 +784,6 @@ public class FieldVisualizer : MonoBehaviour
 		float screenWidth = camcam.GetScreenWidth()-1;
 		float screenHeight = camcam.GetScreenHeight()-1;
 		
-		camcam.orthographicSize = screenHeight / 2.0f;
 		//DebugStreamer.message = "width/height: " + screenWidth.ToString() + "/" + screenHeight.ToString() + " : " + cameraAspect.ToString();
 		
 		float screenWidthPerBlockX = screenWidth * gridAspectScale.x;

@@ -10,7 +10,7 @@ public class NetworkManagerScript : MonoBehaviour
 	
 	void Start ()
 	{
-		
+		DontDestroyOnLoad(this);
 	}
 	
 	void Update ()

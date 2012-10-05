@@ -17,6 +17,16 @@ public class BlackHoleScript : MonoBehaviour
 		
 	}	
 	
+	void OnEnable()
+	{
+		networkView.observed = this;
+	}
+	
+	void OnDisable()
+	{
+
+	}
+	
 	public void AddToRotationSpeed(float additionalRot)
 	{
 		if(!shrinkAndDissapear)
@@ -33,17 +43,20 @@ public class BlackHoleScript : MonoBehaviour
 	{
 		if(fluidField == null)
 		{
-			fluidField = GameObject.Find("heightfield mesh").GetComponent<FluidFieldGenerator>();
+			fluidField = GameObject.Find("fluid field").GetComponent<FluidFieldGenerator>();
 		}
 		else
 		{
 			if(shrinkAndDissapear)
 			{
-				Vector3 curScale = transform.localScale;
-				curScale.x *= 0.9f;
-				curScale.y *= 0.9f;
-				if(curScale.magnitude < 0.02f)
+				
+				Vector3 curScale = transform.localScale * 0.9f;	
+				float curmag = Mathf.Sqrt((curScale.x*curScale.x)+(curScale.y*curScale.y));
+				if(curmag < 0.1f)
+				{
 					Destroy (gameObject);
+					GameLogicController.instance.MoveToNextLevel();
+				}
 				else
 					transform.localScale = curScale;
 			}
@@ -77,17 +90,4 @@ public class BlackHoleScript : MonoBehaviour
 		RotationSpeed = rotSpeed;
 	*/
 	}
-	
-	
-	void OnEnable()
-	{
-		networkView.observed = this;
-	}
-	
-	void OnDisable()
-	{
-
-	}
-	
-
 }

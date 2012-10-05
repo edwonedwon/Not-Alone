@@ -8,7 +8,7 @@ public class FingerGesturesManagerScript : MonoBehaviour {
 	
 	void Start ()
 	{
-		
+		DontDestroyOnLoad(this);
 	}
 	
 	void Update ()
