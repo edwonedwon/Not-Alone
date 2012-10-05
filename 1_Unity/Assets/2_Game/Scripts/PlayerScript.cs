@@ -27,7 +27,8 @@ public class PlayerScript : MonoBehaviour
 	{		
 		
 		touchAnim = GetComponent<tk2dAnimatedSprite>();
-		touchAnim.animationCompleteDelegate = AnimationComplete;
+		if (touchAnim != null)
+			touchAnim.animationCompleteDelegate = AnimationComplete;
 		
 		//print("(start) touch with id: " + networkView.viewID);
 		//particlesPS = GameObject.Find("Particles").GetComponent<ParticleSystem>();
