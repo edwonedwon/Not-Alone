@@ -2,7 +2,7 @@ using UnityEngine;
 using System.Collections;
 
 public class MainCameraScript : MonoBehaviour {
-
+	
 	// Use this for initialization
 	void Start () {
 		
@@ -13,7 +13,7 @@ public class MainCameraScript : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
 		
-		transform.LookAt(GameObject.Find("Not Alone Title").transform.position);
+		transform.LookAt(GameObject.Find("Main Camera Pivot").transform.position);
 		
 //		if (Input.GetButtonDown("Jump") == true) {
 //			LookAtLogo();

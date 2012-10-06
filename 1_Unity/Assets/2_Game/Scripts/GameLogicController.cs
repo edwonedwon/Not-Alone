@@ -24,7 +24,7 @@ public class GameLogicController : MonoBehaviour
 	
 	public void BeginGame()
 	{
-		Application.LoadLevelAsync("NotAlone");
+		Application.LoadLevel("NotAlone");
 	}
 	
 	void Start()
@@ -71,7 +71,7 @@ public class GameLogicController : MonoBehaviour
 		if(currentLevelIdx > 1)
 			currentLevelIdx = 0;
 		
-		Application.LoadLevelAsync(levelProgression[currentLevelIdx]);		
+		Application.LoadLevel(levelProgression[currentLevelIdx]);		
 	}
 	
 	void CheckCurrentGameStateForNextLevel()
@@ -85,10 +85,12 @@ public class GameLogicController : MonoBehaviour
 		{
 			if(player1 == null)
 			{
-				DebugStreamer.message = "created player 1";
-				player1 = (GameObject)Network.Instantiate(player1Prefab, new Vector3(0,0,0), Quaternion.identity, 0);				
-				DontDestroyOnLoad(player1);
-				isPlayer1 = true;
+				if (!Application.loadedLevelName.Contains("Main Menu")) {
+					DebugStreamer.message = "created player 1";
+					player1 = (GameObject)Network.Instantiate(player1Prefab, new Vector3(0,0,0), Quaternion.identity, 0);				
+					DontDestroyOnLoad(player1);
+					isPlayer1 = true;
+				}
 			}
 			
 			CheckCurrentGameStateForNextLevel();		

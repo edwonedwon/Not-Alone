@@ -69,42 +69,45 @@ public class NetworkManagerScript : MonoBehaviour
 	
 	void OnGUI () 
 	{		
-		GUILayout.BeginArea (new Rect (50, 50, 200, Screen.height - 2*50));
+		if (!Application.loadedLevelName.Contains("Main Menu")) 
 		{
-			if (!Network.isClient && !Network.isServer)
+			GUILayout.BeginArea (new Rect (50, 50, 200, Screen.height - 2*50));
 			{
-				if (GUILayout.Button("Start Server")) 
-				{	
-					StartServer();
-				}
-		
-				if (GUILayout.Button("Refresh Hosts")) 
+				if (!Network.isClient && !Network.isServer)
 				{
-					RefreshHostList();
+					if (GUILayout.Button("Start Server")) 
+					{	
+						StartServer();
+					}
+			
+					if (GUILayout.Button("Refresh Hosts")) 
+					{
+						RefreshHostList();
+					}
+					
+					if (!(hostData == null)) 
+					{					
+						for (int i = 0; i< hostData.Length; i++)
+						{
+							if (GUILayout.Button("Join "+ hostData[i].gameName)) 
+							{
+								print("Network.Connect: " + Network.Connect(hostData[i]).ToString());	
+							}
+						}
+					}
 				}
 				
-				if (!(hostData == null)) 
-				{					
-					for (int i = 0; i< hostData.Length; i++)
+				if (Network.isClient || Network.isServer) 
+				{
+					if (GUILayout.Button("Disconnect")) 
 					{
-						if (GUILayout.Button("Join "+ hostData[i].gameName)) 
-						{
-							print("Network.Connect: " + Network.Connect(hostData[i]).ToString());	
-						}
+						Disconnect();
 					}
 				}
 			}
 			
-			if (Network.isClient || Network.isServer) 
-			{
-				if (GUILayout.Button("Disconnect")) 
-				{
-					Disconnect();
-				}
-			}
+			GUILayout.EndArea();
+			
 		}
-		
-		GUILayout.EndArea();
-		
 	}
 }
