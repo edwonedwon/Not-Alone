@@ -19,18 +19,17 @@ public class PlayerScript : MonoBehaviour
 	
 	public int MouseFingerDown()
 	{
-		return mouseFingerDown;
+		return mouseFingerDown;		
 	}
 	
 	
 	void Start()
 	{		
-		
 		touchAnim = GetComponent<tk2dAnimatedSprite>();
 		if (touchAnim != null)
 			touchAnim.animationCompleteDelegate = AnimationComplete;
 		
-		//print("(start) touch with id: " + networkView.viewID);
+		
 		//particlesPS = GameObject.Find("Particles").GetComponent<ParticleSystem>();
 		//particlesTF = GameObject.Find("Particles").GetComponent<Transform>();//		
 		//particlesPS.particleSystem.enableEmission = false;
@@ -39,13 +38,13 @@ public class PlayerScript : MonoBehaviour
 	void OnEnable()
 	{
 		networkView.observed = this;
+		DontDestroyOnLoad(this);
 	}
 	
 	void OnDisable()
 	{
 
 	}
-	
 	
 	void Update()
 	{
@@ -63,9 +62,7 @@ public class PlayerScript : MonoBehaviour
 			Vector3 blackHoleCenter = camcam.WorldToScreenPoint(blackHole.transform.position);
 			
 			float compundedMangle = 0.0f;
-            float totalmangle = 0.0f;
-
-            float direction = 1;
+            float totalmangle = 0.0f; 
 
             for (int i = 1; i < currentMousePoints.Count; ++i)
             {
@@ -95,10 +92,7 @@ public class PlayerScript : MonoBehaviour
                         totalmangle += degsCur - degresOld;
                     }
                 }
-            }
-
-            if(totalmangle < 0)
-                direction = -1;			
+            }		
 			
 			blackHole.AddToRotationSpeed((totalmangle-previousMangle) * 0.1f);
 			previousMangle = totalmangle;
@@ -110,16 +104,13 @@ public class PlayerScript : MonoBehaviour
 		return (float)(radians * (180.0 / 3.14159265359f));
 	}
 	
-	
-	
-	
 	void OnSerializeNetworkView (BitStream stream, NetworkMessageInfo info)
 	{
 		int mouseState = mouseFingerDown;
 		Vector3 pos = transform.position;
 		
 		if(stream.isWriting)
-		{			
+		{
 			stream.Serialize(ref pos);
 			stream.Serialize(ref mouseState);
 		}
@@ -174,8 +165,10 @@ public class PlayerScript : MonoBehaviour
 	}
 	
 	// plays the looping animation after the begin animation ends
-	public void AnimationComplete (tk2dAnimatedSprite touchAnim, int clipId) {
-		switch (clipId) {
+	public void AnimationComplete (tk2dAnimatedSprite touchAnim, int clipId)
+	{
+		switch (clipId)
+		{
 		case 2:
 			if (touchAnim != null)
 				touchAnim.Play("touchLoopAnim"); break;

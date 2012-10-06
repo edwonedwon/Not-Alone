@@ -750,18 +750,16 @@ public class FieldVisualizer : MonoBehaviour
 	private int beginYIdx = 0;
 	private Vector2 gridAspect;
 	
-	private FluidFieldGenerator field;
-	
 	public FieldVisualizer()
 	{
 		
 	}
 	
 	public void BuildFieldVisualizerVertices(FluidFieldGenerator fluidField, int gridSize, int n, int bXIdx, int bYIdx, Vector2 gridAspectScale)
-	{
-		field = fluidField;		
+	{		
 		N = n;
 		width = height = gridSize;
+		arraySize = height*width;
 		beginXIdx = bXIdx;
 		beginYIdx = bYIdx;
 		gridAspect = gridAspectScale;
@@ -773,7 +771,6 @@ public class FieldVisualizer : MonoBehaviour
 		renderer.material = fluidField.material;		
 		Mesh mesh = GetComponent<MeshFilter>().mesh;
 		
-		arraySize = height*width;		
 		vertPositions = new Vector3[arraySize];
 		vertColors = new Color32[arraySize];
 		Vector2[] uv = new Vector2[arraySize];

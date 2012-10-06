@@ -22,11 +22,6 @@ public class GameLogicController : MonoBehaviour
 	private int currentLevelIdx = 0;
 	public string[] levelProgression;
 	
-	public void BeginGame()
-	{
-		Application.LoadLevel("NotAlone");
-	}
-	
 	void Start()
 	{
 		Camera camcam = Camera.main;
@@ -43,7 +38,6 @@ public class GameLogicController : MonoBehaviour
 			Instantiate(gestureInitializer);
 			Instantiate(gestureManager);
 			Instantiate(networkManager);
-			
 			
 			levelProgression = new string[] {"NotAlone", "Level2"};
         }
@@ -64,6 +58,10 @@ public class GameLogicController : MonoBehaviour
 	}
 	
 	
+	public void BeginGame()
+	{
+		MoveToNextLevel();
+	}
 	
 	public void MoveToNextLevel()
 	{
@@ -71,9 +69,25 @@ public class GameLogicController : MonoBehaviour
 		if(currentLevelIdx > 1)
 			currentLevelIdx = 0;
 		
-		Application.LoadLevel(levelProgression[currentLevelIdx]);		
+		networkView.RPC ("SetLevel", RPCMode.AllBuffered, currentLevelIdx);
 	}
 	
+	int curLevelPrefix = 0;
+	
+	[RPC]
+	private void SetLevel(int idx)
+	{
+		//turn message sending off...
+		Network.SetSendingEnabled(curLevelPrefix, false);
+		Network.isMessageQueueRunning = false;
+		
+		Application.LoadLevel(levelProgression[idx]);
+		
+		//Okay turn us back on!
+		Network.isMessageQueueRunning = true;
+		Network.SetSendingEnabled(curLevelPrefix, true);
+	}
+
 	void CheckCurrentGameStateForNextLevel()
 	{
 		
@@ -91,16 +105,14 @@ public class GameLogicController : MonoBehaviour
 					DontDestroyOnLoad(player1);
 					isPlayer1 = true;
 				}
-			}
-			
-			CheckCurrentGameStateForNextLevel();		
+			}	
 		}
 		else if(Network.isClient)
 		{		
 			if(player2 == null)
 			{
 				DebugStreamer.message = "created player 2"; 
-				player2 = (GameObject)Network.Instantiate(player2Prefab, new Vector3(0,0,0), Quaternion.identity, 0);			
+				player2 = (GameObject)Network.Instantiate(player2Prefab, Vector3.zero, Quaternion.identity, 0);
 				DontDestroyOnLoad(player2);
 				isPlayer1 = false;
 			}
