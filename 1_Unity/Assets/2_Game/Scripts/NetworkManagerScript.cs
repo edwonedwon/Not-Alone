@@ -10,7 +10,7 @@ public class NetworkManagerScript : MonoBehaviour
 	
 	void Start ()
 	{
-		DontDestroyOnLoad(this);
+		DontDestroyOnLoad(gameObject);
 		Network.sendRate = 30;
 	}
 	
@@ -107,8 +107,7 @@ public class NetworkManagerScript : MonoBehaviour
 				}
 			}
 			
-			GUILayout.EndArea();
-			
+			GUILayout.EndArea();			
 		}
 	}
 }

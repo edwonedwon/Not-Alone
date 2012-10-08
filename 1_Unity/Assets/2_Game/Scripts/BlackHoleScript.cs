@@ -12,6 +12,11 @@ public class BlackHoleScript : MonoBehaviour
 	public float RotationSpeed = 100;
 	
 	private bool shrinkAndDissapear = false;
+	
+	public Vector3 spewingDirection = new Vector3(1, 1, 1);
+	public float spewRotation = 0.0f;
+		
+		
 	void Start()
 	{		
 		
@@ -49,13 +54,11 @@ public class BlackHoleScript : MonoBehaviour
 		{
 			if(shrinkAndDissapear)
 			{
-				
 				Vector3 curScale = transform.localScale * 0.9f;	
 				float curmag = Mathf.Sqrt((curScale.x*curScale.x)+(curScale.y*curScale.y));
 				if(curmag < 0.1f)
 				{
 					Network.Destroy(gameObject);
-					GameLogicController.instance.MoveToNextLevel();
 				}
 				else
 					transform.localScale = curScale;
@@ -71,6 +74,9 @@ public class BlackHoleScript : MonoBehaviour
 				if(RotationSpeed < 0.0f)
 					shrinkAndDissapear = true;
 			}
+			
+			spewRotation = RotationSpeed * Time.deltaTime * 5.0f;
+			spewingDirection = Quaternion.AngleAxis(spewRotation, Vector3.forward) * spewingDirection;
 		}
 	}
 

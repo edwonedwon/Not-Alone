@@ -8,28 +8,25 @@ public class PlayerScript : MonoBehaviour
 	private int mouseFingerDown = -1;		//neither!
 	private Vector2 lastMousePos = new Vector2(0,0);
 	
-	
 	private bool mouseIsMovingWhileDown = false;
-	
 	private ArrayList currentMousePoints = new ArrayList();
-	private BlackHoleScript blackHole = null;
 	private float previousMangle = 0.0f;
 	
 	private tk2dAnimatedSprite touchAnim;
+	public bool doLinkInk = false;
 	
 	public int MouseFingerDown()
 	{
 		return mouseFingerDown;
 	}
 	
-	
 	void Start()
 	{		
-		
 		touchAnim = GetComponent<tk2dAnimatedSprite>();
 		if (touchAnim != null)
 			touchAnim.animationCompleteDelegate = AnimationComplete;
 		
+		DontDestroyOnLoad(this);
 		//print("(start) touch with id: " + networkView.viewID);
 		//particlesPS = GameObject.Find("Particles").GetComponent<ParticleSystem>();
 		//particlesTF = GameObject.Find("Particles").GetComponent<Transform>();//		
@@ -49,13 +46,12 @@ public class PlayerScript : MonoBehaviour
 	
 	void Update()
 	{
-		if(blackHole == null)
-		{
-			GameObject go = GameObject.FindGameObjectWithTag("blackhole");
-			if(go != null)
-				blackHole = go.GetComponent<BlackHoleScript>();
-		}
 		
+		
+	}
+	
+	public void UpdateAgainstBlackHole(BlackHoleScript blackHole)
+	{
 		if(mouseIsMovingWhileDown && blackHole != null)
 		{
 			Camera camcam = Camera.main;
@@ -82,7 +78,7 @@ public class PlayerScript : MonoBehaviour
                 float minRadius = 20;
 
                 float curLen = (float)System.Math.Sqrt((xDistCur * xDistCur) + (yDistCur * yDistCur));
-                float oldLen = (float)System.Math.Sqrt((xDistOld * xDistOld) + (yDistOld * yDistOld));
+                //float oldLen = (float)System.Math.Sqrt((xDistOld * xDistOld) + (yDistOld * yDistOld));
 
                 if (curLen > minRadius && curLen < maxRadius)
                 {
@@ -100,7 +96,7 @@ public class PlayerScript : MonoBehaviour
             if(totalmangle < 0)
                 direction = -1;			
 			
-			blackHole.AddToRotationSpeed((totalmangle-previousMangle) * 0.1f);
+			blackHole.AddToRotationSpeed((totalmangle-previousMangle) * 0.4f);
 			previousMangle = totalmangle;
 		}		
 	}
@@ -138,7 +134,6 @@ public class PlayerScript : MonoBehaviour
 	
 	public void OnPlayerFingerDown (int finger, Vector2 pos)
 	{
-		
 		// play start animation
 		if (touchAnim != null)
 			touchAnim.Play("touchBeginAnim");
@@ -174,8 +169,10 @@ public class PlayerScript : MonoBehaviour
 	}
 	
 	// plays the looping animation after the begin animation ends
-	public void AnimationComplete (tk2dAnimatedSprite touchAnim, int clipId) {
-		switch (clipId) {
+	public void AnimationComplete (tk2dAnimatedSprite touchAnim, int clipId)
+	{
+		switch (clipId)
+		{
 		case 0:
 			if (touchAnim != null)
 				touchAnim.Play("touchLoopAnim"); break;

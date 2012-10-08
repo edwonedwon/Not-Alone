@@ -31,7 +31,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	//public float initialParticleGridSize = 25.0f;
 	
 	private Vector2 gridAspectScale = new Vector2(1,1);
-	private Vector2 screenAspectScale = new Vector2(1,1);
+
 	
 	private GameObject[,] fieldVisualizers = null;	    
 
@@ -86,8 +86,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	{
 		gridAspectScale = new Vector2(1.0f/(float)VisualizerGridSize, 1.0f/(float)VisualizerGridSize);
 		fieldVisualizers = new GameObject[VisualizerGridSize,VisualizerGridSize];
-		screenAspectScale = new Vector2(Camera.main.aspect, 1.0f/Camera.main.aspect);
-		
+
 		for(int i = 0; i < VisualizerGridSize; ++i)
 		{
 			for(int  j = 0; j < VisualizerGridSize; ++j)
@@ -182,14 +181,24 @@ public class FluidFieldGenerator : MonoBehaviour
 	{
 		System.Random rand = new System.Random();
 		
+		Vector2[] playerScreenPos = new Vector2[2] { Vector2.zero, Vector2.zero};
+		bool doLinkInk = false;
+		
 		for(int m = 0; m < 2; ++m)
 		{
 			if(ownerPlayerMouseInfo[m].player == null)
 				continue;
 			
+			
+			if(ownerPlayerMouseInfo[m].playerScript.doLinkInk)
+				doLinkInk = true;
+			
 			Vector3 worldPos = ownerPlayerMouseInfo[m].player.transform.position;
 			Vector3 screenPos = camcam.WorldToScreenPoint(worldPos);
 			screenPos = camcam.ScreenToViewportPoint(screenPos);
+			
+			playerScreenPos[m].x = screenPos.x;
+			playerScreenPos[m].y = screenPos.y;
 			
 			float mouseChangeX = ownerPlayerMouseInfo[m].previousScreenPos.x - screenPos.x;
 			float mouseChangeY = ownerPlayerMouseInfo[m].previousScreenPos.y - screenPos.y;
@@ -227,15 +236,18 @@ public class FluidFieldGenerator : MonoBehaviour
 				
 	            if (curMouseState == 0)
 				{
-					if(xCell >= 0 && xCell < N && yCell >= 0 && yCell < N)
-					{
-						u0[xCell, yCell] -= mouseChangeX * mousePowerrr * 1000 * dt;
-						v0[xCell, yCell] -= mouseChangeY * mousePowerrr * 1000 * dt;
-					}
-	                //int mouseRadius = 10;
-					//float velPower = 50.0f;
-					///float goalVal = 0.0f;
-					//UpdateBlackHole(curScreenPosx, curScreenPosy, mouseRadius, velPower, mouseVectorPower, goalVal, dt, false);
+					//if(xCell >= 0 && xCell < N && yCell >= 0 && yCell < N)
+					//{
+					//	u0[xCell, yCell] -= mouseChangeX * mousePowerrr * 100 ;//UnityEngine.Random.Range(-mousePowerrr, mousePowerrr) * 10 * dt;
+					//	v0[xCell, yCell] -= mouseChangeY * mousePowerrr * 100 ;//UnityEngine.Random.Range(-mousePowerrr, mousePowerrr) * 10 * dt;
+					//}
+					
+					float mouseRadius = MouseRadius;
+					float velPower = mousePowerrr;
+					float goalVal = 0.0f;
+					float dx = mouseChangeX*-100;
+					float dy = mouseChangeY*-100;
+					UpdateBlackHole(curScreenPosx, curScreenPosy, dx, dy, mouseRadius, velPower, mousePowerrr, goalVal, dt, false);
 	            }
 				if(curMouseState == 1)
 				{				
@@ -243,10 +255,15 @@ public class FluidFieldGenerator : MonoBehaviour
 					float mouseRadius = MouseRadius;
 					float velPower = 0.0f;
 					float goalVal = 1.0f;
-					UpdateBlackHole(curScreenPosx, curScreenPosy, mouseRadius, velPower, mousePowerrr, goalVal, dt, true);
+					float dx = 0.0f;
+					float dy = 0.0f;
+					UpdateBlackHole(curScreenPosx, curScreenPosy, dx, dy, mouseRadius, velPower, mousePowerrr, goalVal, dt, true);
 				}
 			}
-		}		
+		}
+		
+		if(doLinkInk)
+			InkAlongLine(playerScreenPos[0].x, playerScreenPos[0].y, playerScreenPos[1].x, playerScreenPos[1].y);
 	}
 	
     public void UpdateFluids(Vector3 position, Vector3 scale, Camera camcam, float visc, float diffus, float mousePower, float mouseVectorPower, float dt)
@@ -280,7 +297,6 @@ public class FluidFieldGenerator : MonoBehaviour
 	public void UpdateBasedOnBlackHole(BlackHoleScript bhole)
 	{
 		Camera camcam = Camera.main;
-		float cameraAspect = camcam.aspect;
 		float screenWidth = camcam.GetScreenWidth()-1;
 		float screenHeight = camcam.GetScreenHeight()-1;
 		
@@ -295,10 +311,57 @@ public class FluidFieldGenerator : MonoBehaviour
 		float holePower = bhole.holePower;
 		float goalValue = bhole.inkSpit;		
 		
-		UpdateBlackHole(screenPos.x, screenPos.y, radius, velocityPower, holePower, goalValue, dt, true);
+		float dx = bhole.spewingDirection.x;
+		float dy = bhole.spewingDirection.y;
+		
+		UpdateBlackHole(screenPos.x, screenPos.y, dx, dy, radius, velocityPower, holePower, goalValue, dt, true);
 	}
 	
-	private void UpdateBlackHole(float x, float y, float radius, float velocitypower, float holePower, float goalValue, float dt, bool affectDensity)
+	
+	private void InkAlongLine(float posx1, float posy1, float posx2, float posy2)
+	{
+		int x1 =  (int)(posx1 * N);
+		int y1 =  (int)(posy1 * N);
+		
+		int x2 =  (int)(posx2 * N);
+		int y2 =  (int)(posy2 * N);
+		
+		int dx = (int)Mathf.Abs(x2 - x1);
+        int dy = (int)Mathf.Abs(y2 - y1);
+            
+		int sx = 1;
+		int sy = 1;
+            
+        if (x1 > x2)
+			sx = -1;
+        if (y1 > y2)
+			sy = -1;
+
+		int err = dx - dy;
+
+        while (true)
+        {
+			if(x1 >= 0 && x1 < N && y1 >= 0 && y1 < N)
+				densityField[x1, y1] = 1;
+			
+            if (x1 == x2 && y2 == y1)
+                break;
+			
+			int e2 = 2 * err;
+            if (e2 > -dy)
+            {
+                err = err - dy;
+                x1 = x1 + sx;
+            }
+            if (e2 < dx)
+            {
+                err = err + dx;
+                y1 = y1 + sy;
+            }
+		}
+	}
+	
+	private void UpdateBlackHole(float x, float y, float dx, float dy, float radius, float velocitypower, float holePower, float goalValue, float dt, bool affectDensity)
 	{			
 		if(radius < 1)
 			return;
@@ -334,16 +397,18 @@ public class FluidFieldGenerator : MonoBehaviour
 					float xFrac = 1-(fxCell-xCell);
 					float yFrac = 1-(fyCell-yCell);
 
-					float directionX = centerXCell - xCell;
-					float directionY = centerYCell - yCell;
+					float directionX = dx;
+					float directionY = dy;
+					//float directionX = (dx*10);
+					//float directionY = (dy*10);
 
 					int diffx = (int)(directionX);
 					int diffy = (int)(directionY);		
 					
 					if(diffx != 0)
-						directionX = 1.0f/(float)diffx;
+						directionX = (float)diffx;
 					if(diffy != 0)
-						directionY = 1.0f/(float)diffy;
+						directionY = (float)diffy;
 					
 					u0[xCell,yCell] += directionX*velocitypower*dt;
 					v0[xCell,yCell] += directionY*velocitypower*dt;
@@ -513,8 +578,6 @@ public class FluidFieldGenerator : MonoBehaviour
             }
         }
 	}
-	
-	
 	
     private void Diffuse(int startX, int startY, int NCOUNT, int b, float[,]x, float[,] x0, float diff, float dt)
     {
@@ -748,7 +811,6 @@ public class FieldVisualizer : MonoBehaviour
 	private int N = 0;
 	private int beginXIdx = 0;
 	private int beginYIdx = 0;
-	private Vector2 gridAspect;
 	
 	public FieldVisualizer()
 	{
@@ -762,7 +824,6 @@ public class FieldVisualizer : MonoBehaviour
 		arraySize = height*width;
 		beginXIdx = bXIdx;
 		beginYIdx = bYIdx;
-		gridAspect = gridAspectScale;
 		
 		gameObject.transform.parent = fluidField.transform;
 		gameObject.AddComponent(typeof(MeshFilter));
@@ -774,15 +835,11 @@ public class FieldVisualizer : MonoBehaviour
 		vertPositions = new Vector3[arraySize];
 		vertColors = new Color32[arraySize];
 		Vector2[] uv = new Vector2[arraySize];
-		Vector4[] tangents = new Vector4[arraySize];
 		
 		Camera camcam = Camera.main;
-		float cameraAspect = camcam.aspect;
 		float screenWidth = camcam.GetScreenWidth()-1;
 		float screenHeight = camcam.GetScreenHeight()-1;
-		
-		//DebugStreamer.message = "width/height: " + screenWidth.ToString() + "/" + screenHeight.ToString() + " : " + cameraAspect.ToString();
-		
+			
 		float screenWidthPerBlockX = screenWidth * gridAspectScale.x;
 		float screenWidthPerBlockY = screenHeight * gridAspectScale.y;
 		
