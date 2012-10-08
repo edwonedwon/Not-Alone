@@ -6,14 +6,19 @@ public class PlayerScript : MonoBehaviour
 	public int zOffset;
 	
 	private int mouseFingerDown = -1;		//neither!
+	private int previousFinger = -1;		//no difference
+	
 	private Vector2 lastMousePos = new Vector2(0,0);
 	
 	private bool mouseIsMovingWhileDown = false;
 	private ArrayList currentMousePoints = new ArrayList();
 	private float previousMangle = 0.0f;
 	
-	private tk2dAnimatedSprite touchAnim;
+	public tk2dAnimatedSprite touchAnim;
+	public tk2dSprite fingerSprite;
+	
 	public bool doLinkInk = false;
+	public bool isLocalPlayer = true;
 	
 	public int MouseFingerDown()
 	{
@@ -21,11 +26,33 @@ public class PlayerScript : MonoBehaviour
 	}
 	
 	void Start()
-	{		
-		touchAnim = GetComponent<tk2dAnimatedSprite>();
-		if (touchAnim != null)
-			touchAnim.animationCompleteDelegate = AnimationComplete;
+	{
+		if(Network.isClient && gameObject.tag == "PLAYER1")
+		{
+			isLocalPlayer = false;
+		}
+		if(Network.isServer && gameObject.tag == "PLAYER2")
+		{
+			isLocalPlayer = false;
+		}
 		
+		//isLocalPlayer = true;
+		if(isLocalPlayer)
+		{
+			GameObject.Destroy(fingerSprite);
+			fingerSprite = null;
+			GameObject.DontDestroyOnLoad(touchAnim);
+		}
+		else
+		{
+			GameObject.Destroy(touchAnim);
+			touchAnim = null;
+			GameObject.DontDestroyOnLoad(fingerSprite);
+		}
+		
+		if (touchAnim != null)
+			touchAnim.animationCompleteDelegate = AnimationComplete;					
+
 		DontDestroyOnLoad(this);
 		//print("(start) touch with id: " + networkView.viewID);
 		//particlesPS = GameObject.Find("Particles").GetComponent<ParticleSystem>();
@@ -43,11 +70,28 @@ public class PlayerScript : MonoBehaviour
 
 	}
 	
-	
 	void Update()
 	{
+		if(previousFinger != mouseFingerDown)
+		{
+			if(mouseFingerDown != -1)
+			{
+				if(touchAnim != null)
+					touchAnim.Play("touchBeginAnim");
+				if(fingerSprite != null)
+					fingerSprite.enabled = true;
+			}
+			if(mouseFingerDown == -1)
+			{
+				// play end animation
+				if (touchAnim != null)
+					touchAnim.Play("touchEndAnim");
+				if(fingerSprite != null)
+					fingerSprite.enabled = false;
+			}
+		}		
 		
-		
+		previousFinger = mouseFingerDown;		
 	}
 	
 	public void UpdateAgainstBlackHole(BlackHoleScript blackHole)
@@ -60,8 +104,6 @@ public class PlayerScript : MonoBehaviour
 			
 			float compundedMangle = 0.0f;
             float totalmangle = 0.0f;
-
-            float direction = 1;
 
             for (int i = 1; i < currentMousePoints.Count; ++i)
             {
@@ -91,10 +133,7 @@ public class PlayerScript : MonoBehaviour
                         totalmangle += degsCur - degresOld;
                     }
                 }
-            }
-
-            if(totalmangle < 0)
-                direction = -1;			
+            }		
 			
 			blackHole.AddToRotationSpeed((totalmangle-previousMangle) * 0.4f);
 			previousMangle = totalmangle;
@@ -105,9 +144,6 @@ public class PlayerScript : MonoBehaviour
 	{
 		return (float)(radians * (180.0 / 3.14159265359f));
 	}
-	
-	
-	
 	
 	void OnSerializeNetworkView (BitStream stream, NetworkMessageInfo info)
 	{
@@ -133,11 +169,7 @@ public class PlayerScript : MonoBehaviour
 	#region Finger Gestures
 	
 	public void OnPlayerFingerDown (int finger, Vector2 pos)
-	{
-		// play start animation
-		if (touchAnim != null)
-			touchAnim.Play("touchBeginAnim");
-		
+	{		
 		currentMousePoints.Add(pos);
 		lastMousePos = pos;
 		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(lastMousePos.x, lastMousePos.y, zOffset));
@@ -148,7 +180,6 @@ public class PlayerScript : MonoBehaviour
 	public void OnPlayerFingerMove (int finger, Vector2 pos)
 	{
 		//DebugStreamer.message = "mouse move pos: " + pos.ToString();
-		
 		currentMousePoints.Add(pos);
 		lastMousePos = pos;
 		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(lastMousePos.x, lastMousePos.y, zOffset));
@@ -157,13 +188,8 @@ public class PlayerScript : MonoBehaviour
 	
 	public void OnPlayerFingerUp (int finger, Vector2 pos, float timeHeldDown)
 	{
-		// play end animation
-		if (touchAnim != null)
-			touchAnim.Play("touchEndAnim");
-
 		mouseIsMovingWhileDown = false;
 		mouseFingerDown = -1;	//up!
-		
 		previousMangle = 0;
 		currentMousePoints.Clear();
 	}

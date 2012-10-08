@@ -9,12 +9,12 @@ public class GameLogicController : MonoBehaviour
 	public GameObject player1Prefab;
 	public GameObject player2Prefab;
 	
+	private GameObject player1 = null;
+	private GameObject player2 = null;	
+	
 	public GameObject gestureInitializer;
 	public GameObject gestureManager;
 	public GameObject networkManager;
-	
-	private GameObject player1 = null;
-	private GameObject player2 = null;	
 		
 	private int currentLevelIdx = 0;
 	public string[] levelProgression;
@@ -93,18 +93,20 @@ public class GameLogicController : MonoBehaviour
 			{
 				if (!Application.loadedLevelName.Contains("Main Menu"))
 				{
-					DebugStreamer.message = "created player 1";
-					player1 = (GameObject)Network.Instantiate(player1Prefab, Vector3.zero, Quaternion.identity, 0);				
+					//DebugStreamer.message = "created player 1";
+					player1 = (GameObject)Network.Instantiate(player1Prefab, Vector3.zero, Quaternion.identity, 0);
+					//player1.GetComponent<PlayerScript>().isLocalPlayer = true;
 					DontDestroyOnLoad(player1);
 				}
 			}	
 		}
 		else if(Network.isClient)
-		{		
+		{
 			if(player2 == null)
 			{
-				DebugStreamer.message = "created player 2"; 
+				//DebugStreamer.message = "created player 2"; 
 				player2 = (GameObject)Network.Instantiate(player2Prefab, Vector3.zero, Quaternion.identity, 0);
+			 	//player2.GetComponent<PlayerScript>().isLocalPlayer = false;
 				DontDestroyOnLoad(player2);
 			}
 		}
