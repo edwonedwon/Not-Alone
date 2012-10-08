@@ -54,7 +54,8 @@ public class GameLogicController : MonoBehaviour
 	
 	public void BeginGame()
 	{
-		MoveToNextLevel();
+		Application.LoadLevel(1);
+//		MoveToNextLevel();
 	}
 	
 	public void MoveToNextLevel()
