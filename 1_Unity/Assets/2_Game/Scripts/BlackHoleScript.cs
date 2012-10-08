@@ -54,7 +54,7 @@ public class BlackHoleScript : MonoBehaviour
 				float curmag = Mathf.Sqrt((curScale.x*curScale.x)+(curScale.y*curScale.y));
 				if(curmag < 0.1f)
 				{
-					Destroy (gameObject);
+					Network.Destroy(gameObject);
 					GameLogicController.instance.MoveToNextLevel();
 				}
 				else

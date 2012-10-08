@@ -11,6 +11,7 @@ public class NetworkManagerScript : MonoBehaviour
 	void Start ()
 	{
 		DontDestroyOnLoad(this);
+		Network.sendRate = 30;
 	}
 	
 	void Update ()
