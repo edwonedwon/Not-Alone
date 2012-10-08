@@ -176,7 +176,7 @@ public class PlayerScript : MonoBehaviour
 	// plays the looping animation after the begin animation ends
 	public void AnimationComplete (tk2dAnimatedSprite touchAnim, int clipId) {
 		switch (clipId) {
-		case 2:
+		case 0:
 			if (touchAnim != null)
 				touchAnim.Play("touchLoopAnim"); break;
 		}
