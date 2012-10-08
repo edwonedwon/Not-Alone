@@ -94,7 +94,7 @@ public class GameLogicController : MonoBehaviour
 				if (!Application.loadedLevelName.Contains("Main Menu"))
 				{
 					//DebugStreamer.message = "created player 1";
-					player1 = (GameObject)Network.Instantiate(player1Prefab, Vector3.zero, Quaternion.identity, 0);
+					player1 = (GameObject)Network.Instantiate(player1Prefab, new Vector3(-10000, 0, 0), Quaternion.identity, 0);
 					//player1.GetComponent<PlayerScript>().isLocalPlayer = true;
 					DontDestroyOnLoad(player1);
 				}
@@ -105,7 +105,7 @@ public class GameLogicController : MonoBehaviour
 			if(player2 == null)
 			{
 				//DebugStreamer.message = "created player 2"; 
-				player2 = (GameObject)Network.Instantiate(player2Prefab, Vector3.zero, Quaternion.identity, 0);
+				player2 = (GameObject)Network.Instantiate(player2Prefab, new Vector3(10000, 0, 0), Quaternion.identity, 0);
 			 	//player2.GetComponent<PlayerScript>().isLocalPlayer = false;
 				DontDestroyOnLoad(player2);
 			}
