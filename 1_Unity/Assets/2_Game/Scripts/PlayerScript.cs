@@ -8,17 +8,19 @@ public class PlayerScript : MonoBehaviour
 	private int mouseFingerDown = -1;		//neither!
 	private int previousFinger = -1;		//no difference
 	
-	private Vector2 lastMousePos = new Vector2(0,0);
+	private Vector2 prevTouchPos = Vector2.zero;
 	
 	private bool mouseIsMovingWhileDown = false;
 	private ArrayList currentMousePoints = new ArrayList();
 	private float previousMangle = 0.0f;
 	
 	public tk2dAnimatedSprite touchAnim;
-	public tk2dSprite fingerSprite;
 	
 	public bool doLinkInk = false;
 	public bool isLocalPlayer = true;
+	public bool isPlayer1 = false;
+	
+	private string[] touchAnimations = new string[3];
 	
 	public int MouseFingerDown()
 	{
@@ -36,20 +38,19 @@ public class PlayerScript : MonoBehaviour
 			isLocalPlayer = false;
 		}
 		
-		//isLocalPlayer = true;
-		if(isLocalPlayer)
+		if(!isLocalPlayer)
 		{
-			GameObject.Destroy(fingerSprite);
-			fingerSprite = null;
-			GameObject.DontDestroyOnLoad(touchAnim);
+			touchAnimations[0] = "fingerprintBeginAnim";
+			touchAnimations[1] = "fingerprintLoopAnim";
+			touchAnimations[2] = "fingerprintEndAnim";
 		}
 		else
 		{
-			GameObject.Destroy(touchAnim);
-			touchAnim = null;
-			GameObject.DontDestroyOnLoad(fingerSprite);
+			touchAnimations[0] = "touchBeginAnim";
+			touchAnimations[1] = "touchLoopAnim";
+			touchAnimations[2] = "touchEndAnim";	
 		}
-		
+	
 		if (touchAnim != null)
 			touchAnim.animationCompleteDelegate = AnimationComplete;					
 
@@ -77,21 +78,43 @@ public class PlayerScript : MonoBehaviour
 			if(mouseFingerDown != -1)
 			{
 				if(touchAnim != null)
-					touchAnim.Play("touchBeginAnim");
-				if(fingerSprite != null)
-					fingerSprite.enabled = true;
+					touchAnim.Play(touchAnimations[0]);
 			}
 			if(mouseFingerDown == -1)
 			{
 				// play end animation
 				if (touchAnim != null)
-					touchAnim.Play("touchEndAnim");
-				if(fingerSprite != null)
-					fingerSprite.enabled = false;
+					touchAnim.Play(touchAnimations[2]);
 			}
-		}		
+		}
 		
+		float centerx = 0.5f;
+		float centery = 0.5f;
+		
+		float xdiffCur = centerx - prevTouchPos.x;
+		float ydiffCur = centery - prevTouchPos.y;
+		float xdiffOld = centerx - transform.position.x;
+		float ydiffOld = centery - transform.position.y;
+		
+		float angleOld = ToDegrees((float)System.Math.Atan2(ydiffOld, xdiffOld));
+		float angleCur = ToDegrees((float)System.Math.Atan2(ydiffCur, xdiffCur));
+		
+		touchAnim.transform.Rotate(touchAnim.transform.forward, (angleOld-angleCur));
+		prevTouchPos.x = transform.position.x;
+		prevTouchPos.y = transform.position.y;
+
 		previousFinger = mouseFingerDown;		
+	}
+	
+	// plays the looping animation after the begin animation ends
+	public void AnimationComplete (tk2dAnimatedSprite touchAnim, int clipId)
+	{
+		switch (clipId)
+		{
+		case 0:
+			if (touchAnim != null)
+				touchAnim.Play(touchAnimations[1]); break;
+		}
 	}
 	
 	public void UpdateAgainstBlackHole(BlackHoleScript blackHole)
@@ -116,8 +139,8 @@ public class PlayerScript : MonoBehaviour
                 float yDistOld = old.y - blackHoleCenter.y;
                 float xDistOld = old.x - blackHoleCenter.x;
 
-                float maxRadius = 100;
-                float minRadius = 20;
+                float maxRadius = 150;
+                float minRadius = 30;
 
                 float curLen = (float)System.Math.Sqrt((xDistCur * xDistCur) + (yDistCur * yDistCur));
                 //float oldLen = (float)System.Math.Sqrt((xDistOld * xDistOld) + (yDistOld * yDistOld));
@@ -135,7 +158,11 @@ public class PlayerScript : MonoBehaviour
                 }
             }		
 			
-			blackHole.AddToRotationSpeed((totalmangle-previousMangle) * 0.4f);
+			int playerNm = 2;
+			if(isPlayer1)
+				playerNm = 1;
+			
+			blackHole.AddToRotationSpeed((totalmangle-previousMangle) * 0.4f, playerNm);
 			previousMangle = totalmangle;
 		}		
 	}
@@ -171,8 +198,7 @@ public class PlayerScript : MonoBehaviour
 	public void OnPlayerFingerDown (int finger, Vector2 pos)
 	{		
 		currentMousePoints.Add(pos);
-		lastMousePos = pos;
-		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(lastMousePos.x, lastMousePos.y, zOffset));
+		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(pos.x, pos.y, zOffset));
 		mouseFingerDown = finger;	//either 0, or 1 i believe..
 		mouseIsMovingWhileDown = true;
 	}
@@ -181,8 +207,7 @@ public class PlayerScript : MonoBehaviour
 	{
 		//DebugStreamer.message = "mouse move pos: " + pos.ToString();
 		currentMousePoints.Add(pos);
-		lastMousePos = pos;
-		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(lastMousePos.x, lastMousePos.y, zOffset));
+		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(pos.x, pos.y, zOffset));
 		mouseFingerDown = finger;	//either 0, or 1 i believe..
 	}
 	
@@ -192,17 +217,6 @@ public class PlayerScript : MonoBehaviour
 		mouseFingerDown = -1;	//up!
 		previousMangle = 0;
 		currentMousePoints.Clear();
-	}
-	
-	// plays the looping animation after the begin animation ends
-	public void AnimationComplete (tk2dAnimatedSprite touchAnim, int clipId)
-	{
-		switch (clipId)
-		{
-		case 0:
-			if (touchAnim != null)
-				touchAnim.Play("touchLoopAnim"); break;
-		}
 	}
 	
 	#endregion

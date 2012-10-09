@@ -3,8 +3,12 @@ using System.Collections;
 
 public class ET_Finger_Touch : MonoBehaviour
 {
-	private GameObject player1 = null;
-	private GameObject player2 = null;
+	
+	private PlayerScript player1 = null;
+	private PlayerScript player2 = null;
+	
+	private GameObject p1 = null;
+	private GameObject p2 = null;
 	
 	
 	// Use this for initialization
@@ -16,26 +20,29 @@ public class ET_Finger_Touch : MonoBehaviour
 	// Update is called once per frame
 	void Update ()
 	{
-		if(player1 == null)
+		if(p1 == null)
 		{
-			player1 = GameObject.FindGameObjectWithTag("PLAYER1");
-			//if(p1 != null)
-			//	player1 = p1.GetComponent<PlayerScript>();
+			p1 = GameObject.FindGameObjectWithTag("PLAYER1");
+			if(p1 != null)
+				player1 = p1.GetComponent<PlayerScript>();
 		}				
-		if(player2 == null)
+		if(p2 == null)
 		{
-			player2 = GameObject.FindGameObjectWithTag("PLAYER2");
-			//if(p2 != null)
-			//	player2 = p2.GetComponent<PlayerScript>();
+			p2 = GameObject.FindGameObjectWithTag("PLAYER2");
+			if(p2 != null)
+				player2 = p2.GetComponent<PlayerScript>();
 		}
 		
 		
-		if(player1 == null || player2 == null)
+		if(p1 == null || p2 == null)
 			return;
 		
+		int p1finger = player1.MouseFingerDown();
+		int p2finger = player1.MouseFingerDown();
+		
 		//Find out if they are touching...
-		Vector3 v1 = player1.transform.position;
-		Vector3 v2 = player2.transform.position;		
+		Vector3 v1 = p1.transform.position;
+		Vector3 v2 = p2.transform.position;		
 		Vector3 vD = (v2-v1);
 		float difference = vD.magnitude;		
 		
@@ -43,7 +50,7 @@ public class ET_Finger_Touch : MonoBehaviour
 		transform.position = halfwayPoint;
 		
 		ParticleSystem psystem = GetComponent<ParticleSystem>();		
-		if(difference < 50.0f)
+		if(difference < 50.0f && (p1finger == 0 || p2finger == 0))
 		{
 			psystem.enableEmission = true;			
 			psystem.startSize += 10.0f;

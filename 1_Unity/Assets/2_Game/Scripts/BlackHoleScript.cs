@@ -15,8 +15,10 @@ public class BlackHoleScript : MonoBehaviour
 	
 	public Vector3 spewingDirection = new Vector3(1, 1, 1);
 	public float spewRotation = 0.0f;
-		
-		
+	
+	private bool HitByPlayer1 = false;
+	private bool HitByPlayer2 = false;
+	
 	void Start()
 	{		
 		
@@ -32,16 +34,22 @@ public class BlackHoleScript : MonoBehaviour
 
 	}
 	
-	public void AddToRotationSpeed(float additionalRot)
+	public void AddToRotationSpeed(float additionalRot, int playerNm)
 	{
 		if(!shrinkAndDissapear)
-			networkView.RPC ("SetRotationSpeed", RPCMode.All, (RotationSpeed+additionalRot));		
+			networkView.RPC ("SetRotationSpeed", RPCMode.All, (RotationSpeed+additionalRot), playerNm);
 	}
 	
 	[RPC]
-	void SetRotationSpeed(float newRotationSpeed)
+	void SetRotationSpeed(float newRotationSpeed, int playerNm)
 	{
-		RotationSpeed = newRotationSpeed;
+		if(playerNm == 1)
+			HitByPlayer1 = true;
+		else if(playerNm == 2)
+			HitByPlayer2 = true;
+		
+		if(HitByPlayer1 && HitByPlayer2)
+			RotationSpeed = newRotationSpeed;
 	}
 	
 	void Update()
@@ -57,9 +65,7 @@ public class BlackHoleScript : MonoBehaviour
 				Vector3 curScale = transform.localScale * 0.9f;	
 				float curmag = Mathf.Sqrt((curScale.x*curScale.x)+(curScale.y*curScale.y));
 				if(curmag < 0.1f)
-				{
 					Network.Destroy(gameObject);
-				}
 				else
 					transform.localScale = curScale;
 			}
@@ -68,9 +74,6 @@ public class BlackHoleScript : MonoBehaviour
 				fluidField.UpdateBasedOnBlackHole(this);
 				RotationSpeed = Mathf.Min(1000, RotationSpeed);
 				this.transform.Rotate(Vector3.forward, Time.deltaTime * Mathf.Max(50, RotationSpeed));
-				
-				//RotationSpeed -= 25.0f * Time.deltaTime;
-				
 				if(RotationSpeed < 0.0f)
 					shrinkAndDissapear = true;
 			}

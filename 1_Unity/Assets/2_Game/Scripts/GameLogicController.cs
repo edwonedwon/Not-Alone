@@ -96,7 +96,7 @@ public class GameLogicController : MonoBehaviour
 				{
 					//DebugStreamer.message = "created player 1";
 					player1 = (GameObject)Network.Instantiate(player1Prefab, new Vector3(-10000, 0, 0), Quaternion.identity, 0);
-					//player1.GetComponent<PlayerScript>().isLocalPlayer = true;
+					player1.GetComponent<PlayerScript>().isPlayer1 = true;
 					DontDestroyOnLoad(player1);
 				}
 			}	

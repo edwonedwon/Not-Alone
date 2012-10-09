@@ -36,7 +36,16 @@ public class Level_3 : MonoBehaviour
 			return;
 		
 		
-		player2.doLinkInk = player1.doLinkInk = true;
+		if(p1 == null || p2 == null)
+			return;
+		
+		int p1finger = player1.MouseFingerDown();
+		int p2finger = player1.MouseFingerDown();
+		
+		if(p1finger == 1 && p2finger == 1)
+			player1.doLinkInk = player2.doLinkInk = true;
+		else 
+			player1.doLinkInk = player2.doLinkInk = false;
 		
 		GameObject[] blackHoles = GameObject.FindGameObjectsWithTag("blackhole");
 		foreach(GameObject bh in blackHoles)
