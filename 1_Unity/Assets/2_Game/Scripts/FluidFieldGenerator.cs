@@ -39,7 +39,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	{
 		public Vector2 MouseDirection;
 		public Vector3 previousScreenPos;
-		public int previousMouseState;
+		public PlayerScript.FingerState previousMouseState;
 		
 		public float MousePower;
 		public GameObject player;
@@ -190,7 +190,7 @@ public class FluidFieldGenerator : MonoBehaviour
 				continue;
 			
 			
-			if(ownerPlayerMouseInfo[m].playerScript.doLinkInk)
+			if(ownerPlayerMouseInfo[m].playerScript.DoLinkInk())
 				doLinkInk = true;
 			
 			Vector3 worldPos = ownerPlayerMouseInfo[m].player.transform.position;
@@ -206,7 +206,7 @@ public class FluidFieldGenerator : MonoBehaviour
 			ownerPlayerMouseInfo[m].MousePower = 10;
 			float mousePowerrr = ownerPlayerMouseInfo[m].MousePower;
 			
-			int curMouseState = ownerPlayerMouseInfo[m].playerScript.MouseFingerDown();
+			PlayerScript.FingerState curMouseState = ownerPlayerMouseInfo[m].playerScript.MouseFingerDown();
 			
 			if(ownerPlayerMouseInfo[m].previousMouseState != curMouseState)
 			{
@@ -234,7 +234,7 @@ public class FluidFieldGenerator : MonoBehaviour
 				if(xChunk >= 0 && xChunk < ChunkFieldN && yChunk >= 0 && yChunk < ChunkFieldN)
 	            	chunks[xChunk, yChunk].mouseTime += 2;
 				
-	            if (curMouseState == 0)
+	            if (curMouseState == PlayerScript.FingerState.Single)
 				{
 					//if(xCell >= 0 && xCell < N && yCell >= 0 && yCell < N)
 					//{
@@ -249,7 +249,7 @@ public class FluidFieldGenerator : MonoBehaviour
 					float dy = mouseChangeY*-100;
 					UpdateBlackHole(curScreenPosx, curScreenPosy, dx, dy, mouseRadius, velPower, mousePowerrr, goalVal, dt, false);
 	            }
-				if(curMouseState == 1)
+				if(curMouseState == PlayerScript.FingerState.Both)
 				{				
 					//creates the mouse power!
 					float mouseRadius = MouseRadius;

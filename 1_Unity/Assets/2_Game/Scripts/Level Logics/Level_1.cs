@@ -33,10 +33,10 @@ public class Level_1 : MonoBehaviour
 		if(p1 == null || p2 == null)
 			return;
 		
-		int p1finger = player1.MouseFingerDown();
-		int p2finger = player1.MouseFingerDown();
+		PlayerScript.FingerState p1finger = player1.MouseFingerDown();
+		PlayerScript.FingerState p2finger = player1.MouseFingerDown();
 		
-		if(p1finger == -1 && p2finger == -1)
+		if(p1finger == PlayerScript.FingerState.None && p2finger == PlayerScript.FingerState.None)
 			return;
 		
 		//Find out if they are touching...

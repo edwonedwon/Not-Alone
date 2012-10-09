@@ -37,8 +37,8 @@ public class ET_Finger_Touch : MonoBehaviour
 		if(p1 == null || p2 == null)
 			return;
 		
-		int p1finger = player1.MouseFingerDown();
-		int p2finger = player1.MouseFingerDown();
+		PlayerScript.FingerState p1finger = player1.MouseFingerDown();
+		PlayerScript.FingerState p2finger = player1.MouseFingerDown();
 		
 		//Find out if they are touching...
 		Vector3 v1 = p1.transform.position;
