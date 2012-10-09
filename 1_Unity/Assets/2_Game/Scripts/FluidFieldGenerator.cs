@@ -5,7 +5,6 @@ using System;
 
 public class FluidFieldGenerator : MonoBehaviour
 {
-	//public Texture2D heightMap;
 	public Material material;
 	
 	public int N = 96;
@@ -15,11 +14,6 @@ public class FluidFieldGenerator : MonoBehaviour
 	public float fluidFPS = 10.0f;
 	public float viscocity = 10;
 	public float density = 10;
-	
-	public float InkClearRate = 0.5f;
-	public float MouseRadius = 150;
-	public float InkFlowFromMouse = 100;
-	public float VelocityFlowFromMouse = 10;	
 	 
 	public int ChunkFieldN = 8;
 	public int VisualizerGridSize = 2;
@@ -27,26 +21,51 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public bool UseThreading = false;
 	
-	//public float particleGridOffsets = 0.5f;
-	//public float initialParticleGridSize = 25.0f;
-	
 	private Vector2 gridAspectScale = new Vector2(1,1);
 
 	
 	private GameObject[,] fieldVisualizers = null;	    
 
-	public struct PlayerMouseDownInfo
+	private struct PlayerMouseDownInfo
 	{
-		public Vector2 MouseDirection;
+		public GameObject player;
+		public PlayerScript playerScript;
+		
 		public Vector3 previousScreenPos;
 		public PlayerScript.FingerState previousMouseState;
 		
-		public float MousePower;
-		public GameObject player;
-		public PlayerScript playerScript;
-	}	
+		
+		public float mouseRadius;
+		public float inkFlow;
+		public float velocityFlow;
+		public bool dropInk;
+		public bool changeVelocity;
+	}
 	
-	PlayerMouseDownInfo[] ownerPlayerMouseInfo = new PlayerMouseDownInfo[2];
+	public float InkClearRate = 0.5f;
+	
+	public float Player_1_MouseRadius = 50;
+	public float Player_1_InkFlow = 1;
+	public float Player_1_VelocityFlow = 1;
+	public bool Player_1_DropInk = true;
+	public bool Player_1_ChangeVelocity = true;
+	
+	public float Player_2_MouseRadius = 50;
+	public float Player_2_InkFlow = 0;
+	public float Player_2_VelocityFlow = 1;
+	public bool Player_2_DropInk = true;
+	public bool Player_2_ChangeVelocity = true;
+	
+	
+	public float Color_Fluid_R = 0.0f;
+	public float Color_Fluid_G = 0.0f;
+	public float Color_Fluid_B = 1.0f;
+	
+	public float Color_Ink_R = 0.0f;
+	public float Color_Ink_G = 1.0f;
+	public float Color_Ink_B = 0.0f;
+	
+	private PlayerMouseDownInfo[] ownerPlayerMouseInfo = new PlayerMouseDownInfo[2];
 	
     public float[,] u;
     private float[,] u0;
@@ -56,7 +75,7 @@ public class FluidFieldGenerator : MonoBehaviour
     private float[,] prevDensityField;
 	
 	
-    FieldChunk[,] chunks = null;
+    private FieldChunk[,] chunks = null;
 	
 	
 	public class FieldChunk
@@ -129,6 +148,13 @@ public class FluidFieldGenerator : MonoBehaviour
 			ownerPlayerMouseInfo[0].player = GameObject.FindGameObjectWithTag("PLAYER1");
 			if(ownerPlayerMouseInfo[0].player != null)
 				ownerPlayerMouseInfo[0].playerScript = ownerPlayerMouseInfo[0].player.GetComponent<PlayerScript>();
+			
+			
+			ownerPlayerMouseInfo[0].mouseRadius = Player_1_MouseRadius;
+			ownerPlayerMouseInfo[0].inkFlow = Player_1_InkFlow;
+			ownerPlayerMouseInfo[0].velocityFlow = Player_1_VelocityFlow;
+			ownerPlayerMouseInfo[0].dropInk = Player_1_DropInk;
+			ownerPlayerMouseInfo[0].changeVelocity = Player_1_ChangeVelocity;
 		}
 		
 		if(ownerPlayerMouseInfo[1].player == null)
@@ -136,20 +162,28 @@ public class FluidFieldGenerator : MonoBehaviour
 			ownerPlayerMouseInfo[1].player = GameObject.FindGameObjectWithTag("PLAYER2");
 			if(ownerPlayerMouseInfo[1].player != null)
 				ownerPlayerMouseInfo[1].playerScript = ownerPlayerMouseInfo[1].player.GetComponent<PlayerScript>();
+			
+			ownerPlayerMouseInfo[1].mouseRadius = Player_2_MouseRadius;
+			ownerPlayerMouseInfo[1].inkFlow = Player_2_InkFlow;
+			ownerPlayerMouseInfo[1].velocityFlow = Player_2_VelocityFlow;
+			ownerPlayerMouseInfo[1].dropInk = Player_2_DropInk;
+			ownerPlayerMouseInfo[1].changeVelocity = Player_2_ChangeVelocity;
 		}
+		
+		
 		
 		Vector3 position = GetComponent<Transform>().position;
 		Vector3 scale = GetComponent<Transform>().localScale;
 		
 		float dt = 1.0f / fluidFPS;
 		
-		UpdateFluids(position, scale, Camera.main, viscocity, density, InkFlowFromMouse, VelocityFlowFromMouse, dt);
+		UpdateFluids(position, scale, Camera.main, viscocity, density, dt);
 		
 		for(int i = 0; i < VisualizerGridSize; ++i)
 		{
 			for(int  j = 0; j < VisualizerGridSize; ++j)
 			{
-				fieldVisualizers[i, j].GetComponent<FieldVisualizer>().UpdateLookBasedOnFluid(this, N, VisualizerGridSize, VisualizerGridSize);
+				fieldVisualizers[i, j].GetComponent<FieldVisualizer>().UpdateLookBasedOnFluid(this, N, VisualizerGridSize, VisualizerGridSize, Color_Fluid_R, Color_Fluid_G, Color_Fluid_B, Color_Ink_R, Color_Ink_G, Color_Ink_B);
 			}
 		}
 	}	
@@ -188,8 +222,6 @@ public class FluidFieldGenerator : MonoBehaviour
 		{
 			if(ownerPlayerMouseInfo[m].player == null)
 				continue;
-			
-			
 			if(ownerPlayerMouseInfo[m].playerScript.DoLinkInk())
 				doLinkInk = true;
 			
@@ -203,9 +235,6 @@ public class FluidFieldGenerator : MonoBehaviour
 			float mouseChangeX = ownerPlayerMouseInfo[m].previousScreenPos.x - screenPos.x;
 			float mouseChangeY = ownerPlayerMouseInfo[m].previousScreenPos.y - screenPos.y;
 			
-			ownerPlayerMouseInfo[m].MousePower = 10;
-			float mousePowerrr = ownerPlayerMouseInfo[m].MousePower;
-			
 			PlayerScript.FingerState curMouseState = ownerPlayerMouseInfo[m].playerScript.MouseFingerDown();
 			
 			if(ownerPlayerMouseInfo[m].previousMouseState != curMouseState)
@@ -216,9 +245,12 @@ public class FluidFieldGenerator : MonoBehaviour
 			
 			ownerPlayerMouseInfo[m].previousScreenPos = screenPos;
 			
+			if(ownerPlayerMouseInfo[m].playerScript.MouseFingerDown() == PlayerScript.FingerState.None)
+				continue;
+			
 			int chunkSize = N / ChunkFieldN;
 			int mouseIterations = 10;
-			
+			float singlePass = 1.0f / (float)(mouseIterations-1);
 			for(int i = 0; i < mouseIterations; ++i)
 			{
 				float p = (float)i / (float)(mouseIterations-1);
@@ -234,31 +266,14 @@ public class FluidFieldGenerator : MonoBehaviour
 				if(xChunk >= 0 && xChunk < ChunkFieldN && yChunk >= 0 && yChunk < ChunkFieldN)
 	            	chunks[xChunk, yChunk].mouseTime += 2;
 				
-	            if (curMouseState == PlayerScript.FingerState.Single)
-				{
-					//if(xCell >= 0 && xCell < N && yCell >= 0 && yCell < N)
-					//{
-					//	u0[xCell, yCell] -= mouseChangeX * mousePowerrr * 100 ;//UnityEngine.Random.Range(-mousePowerrr, mousePowerrr) * 10 * dt;
-					//	v0[xCell, yCell] -= mouseChangeY * mousePowerrr * 100 ;//UnityEngine.Random.Range(-mousePowerrr, mousePowerrr) * 10 * dt;
-					//}
-					
-					float mouseRadius = MouseRadius;
-					float velPower = mousePowerrr;
-					float goalVal = 0.0f;
-					float dx = mouseChangeX*-100;
-					float dy = mouseChangeY*-100;
-					UpdateBlackHole(curScreenPosx, curScreenPosy, dx, dy, mouseRadius, velPower, mousePowerrr, goalVal, dt, false);
-	            }
-				if(curMouseState == PlayerScript.FingerState.Both)
-				{				
-					//creates the mouse power!
-					float mouseRadius = MouseRadius;
-					float velPower = 0.0f;
-					float goalVal = 1.0f;
-					float dx = 0.0f;
-					float dy = 0.0f;
-					UpdateBlackHole(curScreenPosx, curScreenPosy, dx, dy, mouseRadius, velPower, mousePowerrr, goalVal, dt, true);
-				}
+				
+				float mouseRadius = ownerPlayerMouseInfo[m].mouseRadius;
+				float dx = mouseChangeX*-100*singlePass;
+				float dy = mouseChangeY*-100*singlePass;
+				float mousePower = 1.0f;
+				float velPower = ownerPlayerMouseInfo[m].velocityFlow;
+				float inkflow = ownerPlayerMouseInfo[m].inkFlow;
+				UpdateBlackHole(curScreenPosx, curScreenPosy, dx, dy, mouseRadius, velPower, mousePower, inkflow, dt);
 			}
 		}
 		
@@ -266,7 +281,7 @@ public class FluidFieldGenerator : MonoBehaviour
 			InkAlongLine(playerScreenPos[0].x, playerScreenPos[0].y, playerScreenPos[1].x, playerScreenPos[1].y);
 	}
 	
-    public void UpdateFluids(Vector3 position, Vector3 scale, Camera camcam, float visc, float diffus, float mousePower, float mouseVectorPower, float dt)
+    public void UpdateFluids(Vector3 position, Vector3 scale, Camera camcam, float visc, float diffus, float dt)
     {			
 		UpdateMouses(camcam, dt);
 
@@ -314,9 +329,8 @@ public class FluidFieldGenerator : MonoBehaviour
 		float dx = bhole.spewingDirection.x;
 		float dy = bhole.spewingDirection.y;
 		
-		UpdateBlackHole(screenPos.x, screenPos.y, dx, dy, radius, velocityPower, holePower, goalValue, dt, true);
+		UpdateBlackHole(screenPos.x, screenPos.y, dx, dy, radius, velocityPower, holePower, goalValue, dt);
 	}
-	
 	
 	private void InkAlongLine(float posx1, float posy1, float posx2, float posy2)
 	{
@@ -361,7 +375,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
 	}
 	
-	private void UpdateBlackHole(float x, float y, float dx, float dy, float radius, float velocitypower, float holePower, float goalValue, float dt, bool affectDensity)
+	private void UpdateBlackHole(float x, float y, float dx, float dy, float radius, float velocitypower, float holePower, float inkValue, float dt)
 	{			
 		if(radius < 1)
 			return;
@@ -399,29 +413,15 @@ public class FluidFieldGenerator : MonoBehaviour
 
 					float directionX = dx;
 					float directionY = dy;
-					//float directionX = (dx*10);
-					//float directionY = (dy*10);
-
-					int diffx = (int)(directionX);
-					int diffy = (int)(directionY);		
-					
-					if(diffx != 0)
-						directionX = (float)diffx;
-					if(diffy != 0)
-						directionY = (float)diffy;
 					
 					u0[xCell,yCell] += directionX*velocitypower*dt;
 					v0[xCell,yCell] += directionY*velocitypower*dt;
-					
-					if(affectDensity)
-					{
-						float a = SampleField(densityField, fxCell, fyCell);
-						float b = goalValue;
-						float difference = b-a;
-						float change = difference * (holePower*dt*dt);				
-						densityField[xCell, yCell] = goalValue;
-					}					
-					//DebugStreamer.message = "field density: [" + xCell.ToString() + ", " + yCell.ToString() + "] : " + this.densityField[xCell, yCell].ToString();
+									
+					//float a = SampleField(densityField, fxCell, fyCell);
+					//float b = goalValue;
+					//float difference = b-a;
+					//float change = difference * (holePower*dt*dt);				
+					densityField[xCell, yCell] += inkValue;
 				}
 			}
 		}
@@ -910,29 +910,41 @@ public class FieldVisualizer : MonoBehaviour
 		//particles = new UnityEngine.ParticleSystem.Particle[arraySize];
 	}
 		
-	public void UpdateLookBasedOnFluid(FluidFieldGenerator fluidField, float N, float vertDivsX, float vertDivsY)
+	public void UpdateLookBasedOnFluid(FluidFieldGenerator fluidField, float N, float vertDivsX, float vertDivsY, float fluidR, float fluidG, float fluidB, float Color_Ink_R, float Color_Ink_G, float Color_Ink_B)
 	{
         float sw = width-1;
         float sh = height-1;
 		
-		for (int y=0; y < height; ++y)
+		for (int y = 0; y < height; ++y)
 		{
 			float yperc = (float)y / sh;
 			float fycord = beginYIdx + (yperc * N) / vertDivsY;
 			int colorIdx = y*width;
 			
-			for (int x=0; x < width; ++x)
-			{				
+			for (int x = 0; x < width; ++x)
+			{
 				float xperc = (float)x / sw;
-				float fxcord = beginXIdx + (xperc * N) / vertDivsX;				
+				float fxcord = beginXIdx + (xperc * N) / vertDivsX;
 				
-				float uval = Math.Abs (fluidField.SampleField(fluidField.u, fxcord, fycord));
-                float vval = Math.Abs (fluidField.SampleField(fluidField.v, fxcord, fycord));
+				float vval = Math.Abs (fluidField.SampleField(fluidField.u, fxcord, fycord));
+                vval += Math.Abs (fluidField.SampleField(fluidField.v, fxcord, fycord));
 				float dval = fluidField.SampleField(fluidField.densityField, fxcord, fycord);
 				
-				byte horizontalVelocity = (byte)Math.Max(0, Math.Min(255, 255*(vval)));
-				byte verticalVelocity = (byte)Math.Max(0, Math.Min(255, 255*(uval)));
-				byte densityColor = (byte)Math.Max(0, Math.Min(255, 255*dval));
+				float fr = vval * fluidR;
+				float fg = vval * fluidG;
+				float fb = vval * fluidB;
+				
+				float ir = dval * Color_Ink_R;
+				float ig = dval * Color_Ink_G;
+				float ib = dval * Color_Ink_B;
+				
+				byte vertColorR = (byte)Math.Min(255, (fr+ir)*0.5f*255);
+				byte vertColorG = (byte)Math.Min(255, (fg+ig)*0.5f*255);
+				byte vertColorB = (byte)Math.Min(255, (fb+ib)*0.5f*255);				
+				
+				//byte horizontalVelocity = (byte)Math.Max(0, Math.Min(255, 255*vval));
+				//byte verticalVelocity = (byte)Math.Max(0, Math.Min(255, 255*uval));
+				//byte densityColor = (byte)Math.Max(0, Math.Min(255, 255*dval));
 				
 				//particles[colorIdx].color = new Color32(72, 194, 178, 0);
 				//particles[colorIdx].size = this.initialParticleGridSize;
@@ -940,7 +952,10 @@ public class FieldVisualizer : MonoBehaviour
 				//particles[colorIdx].velocity = new Vector3(uval*100,-vval*100,0);
 				//particles[colorIdx].position += particles[colorIdx].velocity*dt;					
 				
-				vertColors[colorIdx+x] = new Color32(densityColor, verticalVelocity, horizontalVelocity, 255);
+				int vidx = colorIdx+x;
+				vertColors[vidx].r = vertColorR;
+				vertColors[vidx].g = vertColorG;
+				vertColors[vidx].b = vertColorB;				
 				//vertices[colorIdx].z = densityColor*0.1f;
 			}
 		}
