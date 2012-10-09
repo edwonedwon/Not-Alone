@@ -9,6 +9,8 @@
 /1_Unity/Library
 /1_Unity/Temp
 
+*.psd
+*.psd.meta
 *.unityproj
 *.swp
 *.csproj
