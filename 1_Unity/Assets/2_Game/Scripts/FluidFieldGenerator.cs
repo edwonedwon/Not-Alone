@@ -47,15 +47,10 @@ public class FluidFieldGenerator : MonoBehaviour
 	public float Player_1_MouseRadius = 50;
 	public float Player_1_InkFlow = 1;
 	public float Player_1_VelocityFlow = 1;
-	public bool Player_1_DropInk = true;
-	public bool Player_1_ChangeVelocity = true;
 	
 	public float Player_2_MouseRadius = 50;
 	public float Player_2_InkFlow = 0;
-	public float Player_2_VelocityFlow = 1;
-	public bool Player_2_DropInk = true;
-	public bool Player_2_ChangeVelocity = true;
-	
+	public float Player_2_VelocityFlow = 1;	
 	
 	public float Color_Fluid_R = 0.0f;
 	public float Color_Fluid_G = 0.0f;
@@ -149,12 +144,9 @@ public class FluidFieldGenerator : MonoBehaviour
 			if(ownerPlayerMouseInfo[0].player != null)
 				ownerPlayerMouseInfo[0].playerScript = ownerPlayerMouseInfo[0].player.GetComponent<PlayerScript>();
 			
-			
 			ownerPlayerMouseInfo[0].mouseRadius = Player_1_MouseRadius;
 			ownerPlayerMouseInfo[0].inkFlow = Player_1_InkFlow;
 			ownerPlayerMouseInfo[0].velocityFlow = Player_1_VelocityFlow;
-			ownerPlayerMouseInfo[0].dropInk = Player_1_DropInk;
-			ownerPlayerMouseInfo[0].changeVelocity = Player_1_ChangeVelocity;
 		}
 		
 		if(ownerPlayerMouseInfo[1].player == null)
@@ -166,8 +158,6 @@ public class FluidFieldGenerator : MonoBehaviour
 			ownerPlayerMouseInfo[1].mouseRadius = Player_2_MouseRadius;
 			ownerPlayerMouseInfo[1].inkFlow = Player_2_InkFlow;
 			ownerPlayerMouseInfo[1].velocityFlow = Player_2_VelocityFlow;
-			ownerPlayerMouseInfo[1].dropInk = Player_2_DropInk;
-			ownerPlayerMouseInfo[1].changeVelocity = Player_2_ChangeVelocity;
 		}
 		
 		
