@@ -197,6 +197,7 @@ public class PlayerScript : MonoBehaviour
 	
 	public void OnPlayerFingerDown (int finger, Vector2 pos)
 	{		
+		audio.Play();
 		currentMousePoints.Add(pos);
 		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(pos.x, pos.y, zOffset));
 		mouseFingerDown = finger;	//either 0, or 1 i believe..
