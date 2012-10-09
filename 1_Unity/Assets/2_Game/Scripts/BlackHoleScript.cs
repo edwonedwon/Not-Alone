@@ -78,6 +78,7 @@ public class BlackHoleScript : MonoBehaviour
 					shrinkAndDissapear = true;
 			}
 			
+			
 			spewRotation = RotationSpeed * Time.deltaTime * 5.0f;
 			spewingDirection = Quaternion.AngleAxis(spewRotation, Vector3.forward) * spewingDirection;
 		}
