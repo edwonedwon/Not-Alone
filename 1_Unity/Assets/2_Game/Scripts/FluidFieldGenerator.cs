@@ -26,6 +26,22 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public ParticleSystem spiritParticleSystem = null;
 	
+	int particleCount = 50;
+	public class SpiritParticle
+	{
+		public Vector2 velocity = Vector2.zero;
+		public Vector2 position = Vector2.zero;
+		public float mass = 1.0f;
+		
+		public SpiritParticle(float m)
+		{
+			mass = m;
+		}
+	};
+	
+	SpiritParticle[] spiritParticles;
+	
+	
 	private struct PlayerMouseDownInfo
 	{
 		public GameObject player;
@@ -91,6 +107,10 @@ public class FluidFieldGenerator : MonoBehaviour
 		InitFields();
 		InitVisualizerField();
 		InitChunkFields();
+		
+		spiritParticles = new SpiritParticle[particleCount];
+		for(int i = 0; i < particleCount; ++i)
+			spiritParticles[i] = new SpiritParticle(UnityEngine.Random.Range(1.0f, 3.0f));
 	}
 	
 	private void InitVisualizerField()
@@ -157,8 +177,8 @@ public class FluidFieldGenerator : MonoBehaviour
 			ownerPlayerMouseInfo[1].velocityFlow = Player_2_VelocityFlow;
 		}
 		
-		Vector3 position = GetComponent<Transform>().position;
-		Vector3 scale = GetComponent<Transform>().localScale;
+		Vector3 position = transform.position;
+		Vector3 scale = transform.localScale;
 		
 		float dt = 1.0f / fluidFPS;
 		
@@ -293,37 +313,122 @@ public class FluidFieldGenerator : MonoBehaviour
 		UpdateSpritParticles(camcam);
     }
 	
-	
-	public void UpdateSpritParticles(Camera camcma)
+	public void UpdateSpritParticles(Camera camcam)
 	{
 		int pcount = spiritParticleSystem.particleCount;
 		UnityEngine.ParticleSystem.Particle[] particles = new UnityEngine.ParticleSystem.Particle[pcount];
 		spiritParticleSystem.GetParticles(particles);
 		
+		float gravity = 2.0f;
+		Vector3 centerOfScreen = camcam.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, 0.0f));
+		
+		int pIdx = 1;		
 		for(int i = 0; i < pcount; ++i)
 		{
-			Vector2 ppos = particles[i].position;
-			Vector3 screenPos = camcma.WorldToViewportPoint(ppos);
+			SpiritParticle sp = spiritParticles[i];
+			Vector3 ppos = particles[i].position;
+			Vector3 screenPos = camcam.WorldToViewportPoint(ppos);
 			int xCell = (int)(screenPos.x * N);
 			int yCell = (int)(screenPos.y * N);
 			
-			if(xCell >= 0 && xCell < N && yCell >= 0 && yCell < N)
-			{			
+			sp.velocity *= 0.98f;	//slow itself down!
+			
+			if(xCell >= 1 && xCell < N-1 && yCell >= 1 && yCell < N-1)
+			{
 				ppos.x += u[xCell,yCell] * 50.0f;
 				ppos.y += v[xCell,yCell] * 50.0f;
-				particles[i].position = ppos;
-				particles[i].startLifetime = 2.5f;
-				particles[i].lifetime = 5.0f;
 			}
-			//particles[idx].position = new Vector3(vertPositions[idx].x+randomX, vertPositions[idx].y+randomY, vertPositions[idx].z-10);
-			//particles[idx].color = new Color32(173, 194, 72, 32);
+			else //bring em back towards the center of the screen
+			{
+				Vector3 sub = centerOfScreen-ppos;
+				float len = sub.magnitude;
+				sub.Normalize();
+				sub *= ((gravity * (sp.mass * 100) / len));
+				sp.velocity.x += sub.x;
+				sp.velocity.y += sub.y;
+			}
 			
+			
+			//gravy towards player-finger-downs
+			for(int m = 0; m < 2; ++m)
+			{
+				if(ownerPlayerMouseInfo[m].player == null)
+					continue;
+				if(ownerPlayerMouseInfo[m].playerScript.MouseFingerDown() != PlayerScript.FingerState.None)
+				{
+					Vector3 sub = ownerPlayerMouseInfo[m].player.transform.position-ppos;
+					float len = sub.magnitude;
+					sub.Normalize();
+					sub *= ((gravity * (sp.mass * 600) / len));
+					sp.velocity.x += sub.x;
+					sp.velocity.y += sub.y;
+				}				
+			}
+			
+			//Do N-Body gravitations!
+			for(int j = pIdx; j < pcount; ++j)
+			{
+				SpiritParticle sp2 = spiritParticles[j];				
+				Vector3 ppos2 = particles[j].position;
+				Vector3 sub = ppos2-ppos;
+				float len = sub.magnitude;
+				sub.Normalize();
+				sub *= ((gravity * (sp.mass * sp2.mass) / len));
+				sp.velocity.x += sub.x;
+				sp.velocity.y += sub.y;				
+			}			
+			++pIdx;
+			
+			ppos.x += sp.velocity.x * Time.deltaTime;
+			ppos.y += sp.velocity.y * Time.deltaTime;
+			sp.position = ppos;
+			
+			particles[i].startLifetime = 2.5f;
+			particles[i].lifetime = 5.0f;
+			particles[i].position = ppos;
+			particles[i].size = sp.mass * 10;
 		}
 		
 		spiritParticleSystem.SetParticles(particles, pcount);
 	}
 	
+	
+	public void PostRenderParticles() 
+	{
+		int pcount = spiritParticleSystem.particleCount;
+		UnityEngine.ParticleSystem.Particle[] particles = new UnityEngine.ParticleSystem.Particle[pcount];
+		spiritParticleSystem.GetParticles(particles);
 		
+		GL.PushMatrix();
+		material.SetPass(0);
+		
+		int pIdx = 1;
+		for(int i = 0; i < pcount; ++i)
+		{
+			Vector2 ppos = particles[i].position;
+			for(int j = pIdx; j < pcount; ++j)
+			{
+				Vector2 ppos2 = particles[j].position;
+				float subDist = (ppos-ppos2).magnitude;
+				
+				float minDist = 50.0f;				
+				if(subDist < minDist)
+				{				
+					float alpha = 1-(subDist / minDist);
+					GL.Begin(GL.LINES);
+					GL.Color(new Color(1.0f, 1.0f, 1.0f, alpha));
+					GL.Vertex(ppos);
+					GL.Vertex(ppos2);
+					GL.End();
+				}
+			}
+
+			++pIdx;
+		}	
+		
+		GL.PopMatrix();
+	}
+	
 	public void UpdateBasedOnBlackHole(BlackHoleScript bhole)
 	{
 		Camera camcam = Camera.main;
