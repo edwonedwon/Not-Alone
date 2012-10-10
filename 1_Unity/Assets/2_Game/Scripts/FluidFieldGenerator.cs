@@ -26,6 +26,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	public ParticleSystem spiritParticleSystem = null;
 	public float SpiritGravity = 2.0f;
 	public float SpiritToPlayerAttraction = 3.0f;
+	public float SpritParticleSeperationDistance = 50;
 	
 	public class SpiritParticle
 	{
@@ -320,6 +321,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		spiritParticleSystem.GetParticles(particles);
 		
 		Vector3 centerOfScreen = camcam.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, 0.0f));
+		float minLineDist = 50.0f;
 		
 		int pIdx = 1;		
 		for(int i = 0; i < pcount; ++i)
@@ -363,6 +365,7 @@ public class FluidFieldGenerator : MonoBehaviour
 				}				
 			}
 			
+			
 			//Do N-Body gravitations!
 			for(int j = pIdx; j < pcount; ++j)
 			{
@@ -370,13 +373,29 @@ public class FluidFieldGenerator : MonoBehaviour
 				Vector3 ppos2 = particles[j].position;
 				Vector3 sub = ppos2-ppos;
 				float len = sub.magnitude;
-				if(len > 15)
+				
+				if(len < minLineDist)
 				{
-					sub.Normalize();
-					sub *= ((SpiritGravity * (sp.mass * sp2.mass) / len));
+					//Add a line between all these guys!
+					float alpha = 1-(len / minLineDist);
+					linesToDraw.Add(new LineToDraw(ppos, ppos2, new Color(1.0f, 1.0f, 1.0f, alpha)));
+				}
+				
+				sub.Normalize();
+				sub *= ((SpiritGravity * (sp.mass * sp2.mass) / len));
+					
+				if(len < SpritParticleSeperationDistance)
+				{
+					sp.velocity.x -= sub.x;
+					sp.velocity.y -= sub.y;
+				}
+				else
+				{
 					sp.velocity.x += sub.x;
 					sp.velocity.y += sub.y;
 				}
+					
+				
 			}
 			++pIdx;
 			
@@ -395,44 +414,39 @@ public class FluidFieldGenerator : MonoBehaviour
 	}
 	
 	
+	
+	private struct LineToDraw
+	{
+		public Vector2 pos1;
+		public Vector2 pos2;
+		public Color color;
+		public LineToDraw(Vector2 v1, Vector2 v2, Color col)
+		{
+			pos1 = v1;
+			pos2 = v2;
+			color = col;
+		}
+	};
+	private ArrayList linesToDraw = new ArrayList();
+	
 	public void PostRenderParticles() 
 	{
-		int pcount = spiritParticleSystem.particleCount;
-		UnityEngine.ParticleSystem.Particle[] particles = new UnityEngine.ParticleSystem.Particle[pcount];
-		spiritParticleSystem.GetParticles(particles);
-		
 		GL.PushMatrix();
 		material.SetPass(0);
 		
-		int pIdx = 1;
-		for(int i = 0; i < pcount; ++i)
+		int cnt = linesToDraw.Count;
+		for(int i = 0; i < cnt; ++i)
 		{
-			Vector2 ppos = particles[i].position;
-			for(int j = pIdx; j < pcount; ++j)
-			{
-				Vector2 ppos2 = particles[j].position;
-				float subDist = (ppos-ppos2).magnitude;
-				
-				float minDist = 50.0f;				
-				if(subDist < minDist)
-				{
-					float r = 1;//(float)(particles[j].color.r / 255.0f);
-					float g = 1;//(float)(particles[j].color.g / 255.0f);
-					float b = 1;//(float)(particles[j].color.b / 255.0f);
-					
-					float alpha = 1-(subDist / minDist);
-					GL.Begin(GL.LINES);
-					GL.Color(new Color(r, g, b, alpha));
-					GL.Vertex(ppos);
-					GL.Vertex(ppos2);
-					GL.End();
-				}
-			}
-
-			++pIdx;
-		}	
+			LineToDraw ltd = (LineToDraw)linesToDraw[i];			
+			GL.Begin(GL.LINES);
+			GL.Color(ltd.color);
+			GL.Vertex(ltd.pos1);
+			GL.Vertex(ltd.pos2);
+			GL.End();
+		}
 		
 		GL.PopMatrix();
+		linesToDraw.Clear();
 	}
 	
 	public void UpdateBasedOnBlackHole(BlackHoleScript bhole)
