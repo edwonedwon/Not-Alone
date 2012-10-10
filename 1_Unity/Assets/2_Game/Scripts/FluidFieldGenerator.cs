@@ -17,16 +17,16 @@ public class FluidFieldGenerator : MonoBehaviour
 	 
 	public int ChunkFieldN = 8;
 	public int VisualizerGridSize = 2;
-	public int VisualizerGridFieldGridDensity = 64;
-	
+	public int VisualizerGridFieldGridDensity = 64;	
 	public bool UseThreading = false;
 	
 	private Vector2 gridAspectScale = new Vector2(1,1);
 	private GameObject[,] fieldVisualizers = null;	    
 	
 	public ParticleSystem spiritParticleSystem = null;
+	public float SpiritGravity = 2.0f;
+	public float SpiritToPlayerAttraction = 3.0f;
 	
-	int particleCount = 50;
 	public class SpiritParticle
 	{
 		public Vector2 velocity = Vector2.zero;
@@ -39,8 +39,8 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
 	};
 	
+	private int maxSpiritParticles = 250;
 	SpiritParticle[] spiritParticles;
-	
 	
 	private struct PlayerMouseDownInfo
 	{
@@ -108,8 +108,8 @@ public class FluidFieldGenerator : MonoBehaviour
 		InitVisualizerField();
 		InitChunkFields();
 		
-		spiritParticles = new SpiritParticle[particleCount];
-		for(int i = 0; i < particleCount; ++i)
+		spiritParticles = new SpiritParticle[maxSpiritParticles];
+		for(int i = 0; i < maxSpiritParticles; ++i)
 			spiritParticles[i] = new SpiritParticle(UnityEngine.Random.Range(1.0f, 3.0f));
 	}
 	
@@ -315,11 +315,10 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public void UpdateSpritParticles(Camera camcam)
 	{
-		int pcount = spiritParticleSystem.particleCount;
+		int pcount = Mathf.Min (maxSpiritParticles, spiritParticleSystem.particleCount);
 		UnityEngine.ParticleSystem.Particle[] particles = new UnityEngine.ParticleSystem.Particle[pcount];
 		spiritParticleSystem.GetParticles(particles);
 		
-		float gravity = 2.0f;
 		Vector3 centerOfScreen = camcam.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, 0.0f));
 		
 		int pIdx = 1;		
@@ -343,11 +342,10 @@ public class FluidFieldGenerator : MonoBehaviour
 				Vector3 sub = centerOfScreen-ppos;
 				float len = sub.magnitude;
 				sub.Normalize();
-				sub *= ((gravity * (sp.mass * 100) / len));
+				sub *= ((SpiritGravity * (sp.mass * 100) / len));
 				sp.velocity.x += sub.x;
 				sp.velocity.y += sub.y;
-			}
-			
+			}			
 			
 			//gravy towards player-finger-downs
 			for(int m = 0; m < 2; ++m)
@@ -359,7 +357,7 @@ public class FluidFieldGenerator : MonoBehaviour
 					Vector3 sub = ownerPlayerMouseInfo[m].player.transform.position-ppos;
 					float len = sub.magnitude;
 					sub.Normalize();
-					sub *= ((gravity * (sp.mass * 600) / len));
+					sub *= ((SpiritToPlayerAttraction * (sp.mass * 600) / len));
 					sp.velocity.x += sub.x;
 					sp.velocity.y += sub.y;
 				}				
@@ -372,12 +370,16 @@ public class FluidFieldGenerator : MonoBehaviour
 				Vector3 ppos2 = particles[j].position;
 				Vector3 sub = ppos2-ppos;
 				float len = sub.magnitude;
-				sub.Normalize();
-				sub *= ((gravity * (sp.mass * sp2.mass) / len));
-				sp.velocity.x += sub.x;
-				sp.velocity.y += sub.y;				
-			}			
+				if(len > 15)
+				{
+					sub.Normalize();
+					sub *= ((SpiritGravity * (sp.mass * sp2.mass) / len));
+					sp.velocity.x += sub.x;
+					sp.velocity.y += sub.y;
+				}
+			}
 			++pIdx;
+			
 			
 			ppos.x += sp.velocity.x * Time.deltaTime;
 			ppos.y += sp.velocity.y * Time.deltaTime;
@@ -413,10 +415,14 @@ public class FluidFieldGenerator : MonoBehaviour
 				
 				float minDist = 50.0f;				
 				if(subDist < minDist)
-				{				
+				{
+					float r = 1;//(float)(particles[j].color.r / 255.0f);
+					float g = 1;//(float)(particles[j].color.g / 255.0f);
+					float b = 1;//(float)(particles[j].color.b / 255.0f);
+					
 					float alpha = 1-(subDist / minDist);
 					GL.Begin(GL.LINES);
-					GL.Color(new Color(1.0f, 1.0f, 1.0f, alpha));
+					GL.Color(new Color(r, g, b, alpha));
 					GL.Vertex(ppos);
 					GL.Vertex(ppos2);
 					GL.End();
