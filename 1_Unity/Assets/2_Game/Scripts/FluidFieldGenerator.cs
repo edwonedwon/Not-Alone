@@ -22,10 +22,10 @@ public class FluidFieldGenerator : MonoBehaviour
 	public bool UseThreading = false;
 	
 	private Vector2 gridAspectScale = new Vector2(1,1);
-
-	
 	private GameObject[,] fieldVisualizers = null;	    
-
+	
+	public ParticleSystem spiritParticleSystem = null;
+	
 	private struct PlayerMouseDownInfo
 	{
 		public GameObject player;
@@ -34,12 +34,9 @@ public class FluidFieldGenerator : MonoBehaviour
 		public Vector3 previousScreenPos;
 		public PlayerScript.FingerState previousMouseState;
 		
-		
 		public float mouseRadius;
 		public float inkFlow;
 		public float velocityFlow;
-		public bool dropInk;
-		public bool changeVelocity;
 	}
 	
 	public float InkClearRate = 0.5f;
@@ -160,8 +157,6 @@ public class FluidFieldGenerator : MonoBehaviour
 			ownerPlayerMouseInfo[1].velocityFlow = Player_2_VelocityFlow;
 		}
 		
-		
-		
 		Vector3 position = GetComponent<Transform>().position;
 		Vector3 scale = GetComponent<Transform>().localScale;
 		
@@ -215,9 +210,7 @@ public class FluidFieldGenerator : MonoBehaviour
 			if(ownerPlayerMouseInfo[m].playerScript.DoLinkInk())
 				doLinkInk = true;
 			
-			Vector3 worldPos = ownerPlayerMouseInfo[m].player.transform.position;
-			Vector3 screenPos = camcam.WorldToScreenPoint(worldPos);
-			screenPos = camcam.ScreenToViewportPoint(screenPos);
+			Vector3 screenPos = camcam.WorldToViewportPoint(ownerPlayerMouseInfo[m].player.transform.position);
 			
 			playerScreenPos[m].x = screenPos.x;
 			playerScreenPos[m].y = screenPos.y;
@@ -255,7 +248,6 @@ public class FluidFieldGenerator : MonoBehaviour
 				int yChunk = (int)(yCell / chunkSize);
 				if(xChunk >= 0 && xChunk < ChunkFieldN && yChunk >= 0 && yChunk < ChunkFieldN)
 	            	chunks[xChunk, yChunk].mouseTime += 2;
-				
 				
 				float mouseRadius = ownerPlayerMouseInfo[m].mouseRadius;
 				float dx = mouseChangeX*-100*singlePass;
@@ -297,7 +289,40 @@ public class FluidFieldGenerator : MonoBehaviour
 		
 		VelocityStep(viscosity, dt);
 		DensityStep(diff, dt);
+		
+		UpdateSpritParticles(camcam);
     }
+	
+	
+	public void UpdateSpritParticles(Camera camcma)
+	{
+		int pcount = spiritParticleSystem.particleCount;
+		UnityEngine.ParticleSystem.Particle[] particles = new UnityEngine.ParticleSystem.Particle[pcount];
+		spiritParticleSystem.GetParticles(particles);
+		
+		for(int i = 0; i < pcount; ++i)
+		{
+			Vector2 ppos = particles[i].position;
+			Vector3 screenPos = camcma.WorldToViewportPoint(ppos);
+			int xCell = (int)(screenPos.x * N);
+			int yCell = (int)(screenPos.y * N);
+			
+			if(xCell >= 0 && xCell < N && yCell >= 0 && yCell < N)
+			{			
+				ppos.x += u[xCell,yCell] * 50.0f;
+				ppos.y += v[xCell,yCell] * 50.0f;
+				particles[i].position = ppos;
+				particles[i].startLifetime = 2.5f;
+				particles[i].lifetime = 5.0f;
+			}
+			//particles[idx].position = new Vector3(vertPositions[idx].x+randomX, vertPositions[idx].y+randomY, vertPositions[idx].z-10);
+			//particles[idx].color = new Color32(173, 194, 72, 32);
+			
+		}
+		
+		spiritParticleSystem.SetParticles(particles, pcount);
+	}
+	
 		
 	public void UpdateBasedOnBlackHole(BlackHoleScript bhole)
 	{
