@@ -217,12 +217,26 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
     }	 
 	
+	public float amountOfSadness = 0;
+	public float amountOfHappiness = 0.0f;
+	public float amountOfAngriness = 0.0f;
+	
 	public void UpdateMouses(Camera camcam, float dt)
 	{
 		System.Random rand = new System.Random();
 		
 		Vector2[] playerScreenPos = new Vector2[2] { Vector2.zero, Vector2.zero};
 		bool doLinkInk = false;
+		
+		float prevSad = amountOfSadness;
+		float prevHap = amountOfHappiness;
+		float prevAng = amountOfAngriness;
+		
+		
+		amountOfSadness = 0;
+		amountOfHappiness = 0;
+		amountOfAngriness = 0;
+		
 		
 		for(int m = 0; m < 2; ++m)
 		{
@@ -235,7 +249,16 @@ public class FluidFieldGenerator : MonoBehaviour
 			
 			playerScreenPos[m].x = screenPos.x;
 			playerScreenPos[m].y = screenPos.y;
+			if(ownerPlayerMouseInfo[m].playerScript.doInkBurst)
+			{
+				DoInkBurst(screenPos.x, screenPos.y);
+				ownerPlayerMouseInfo[m].playerScript.doInkBurst = false;
+			}
 			
+			amountOfSadness += ownerPlayerMouseInfo[m].playerScript.totalSadness;
+			amountOfHappiness += ownerPlayerMouseInfo[m].playerScript.totalHappiness;
+			amountOfAngriness += ownerPlayerMouseInfo[m].playerScript.totalAngriness;
+						
 			float mouseChangeX = ownerPlayerMouseInfo[m].previousScreenPos.x - screenPos.x;
 			float mouseChangeY = ownerPlayerMouseInfo[m].previousScreenPos.y - screenPos.y;
 			
@@ -280,6 +303,12 @@ public class FluidFieldGenerator : MonoBehaviour
 			}
 		}
 		
+		
+		
+		amountOfSadness = Mathf.Lerp(prevSad, amountOfSadness, 0.1f);
+		amountOfHappiness = Mathf.Lerp(prevHap, amountOfHappiness, 0.1f);
+		amountOfAngriness = Mathf.Lerp(prevAng, amountOfAngriness, 0.1f);
+			
 		if(doLinkInk)
 			InkAlongLine(playerScreenPos[0].x, playerScreenPos[0].y, playerScreenPos[1].x, playerScreenPos[1].y);
 	}
@@ -472,6 +501,34 @@ public class FluidFieldGenerator : MonoBehaviour
 		UpdateBlackHole(screenPos.x, screenPos.y, dx, dy, radius, velocityPower, holePower, goalValue, dt);
 	}
 	
+	
+	private void DoInkBurst(float posx1, float posy1)
+	{
+		int radius = 10;
+		int x1 = (int)(posx1 * N);
+		int y1 = (int)(posy1 * N);
+		
+		int hr = radius / 2;
+		float burstStrength = 100.0f;
+		for(int i = x1-hr; i < x1+hr; ++i)
+		{
+			for(int j = y1-hr; j < y1+hr; ++j)
+			{
+				int xDelta = x1-i;
+				int yDelta = y1-j;
+				
+				if(i >= 0 && i < N && j >= 0 && j < N)
+				{
+					u0[i, j] = xDelta*burstStrength;
+					v0[i, j] = yDelta*burstStrength;
+					//prevDensityField[i, j] += 1.0f;
+				}
+			}
+		}		
+	}
+	
+	
+	
 	private void InkAlongLine(float posx1, float posy1, float posx2, float posy2)
 	{
 		int x1 =  (int)(posx1 * N);
@@ -597,19 +654,22 @@ public class FluidFieldGenerator : MonoBehaviour
 	{
 		int aX = (int)xcoord;
 		int aY = (int)ycoord;
-		float d0 = field[aX, aY];
+		
+		float d0 = field[aX,   aY];
 		float d1 = field[aX+1, aY];
 		float d2 = field[aX+1, aY+1];
-		float d3 = field[aX, aY+1];		
+		float d3 = field[aX,   aY+1];
+		
 		float xFrac = xcoord - aX;
 		float yFrac = ycoord - aY;
-		return LERP(yFrac, LERP(xFrac, d0, d1), LERP(xFrac, d2, d3));		
+		
+		return FloatLerp(yFrac, FloatLerp(xFrac, d0, d1), FloatLerp(xFrac, d2, d3));
 	}		
 	
-	private float LERP(float f, float v0, float v1)
-	{
-		return ((1.0f-(f))*(v0)+(f)*(v1));
-	}
+	public static float FloatLerp(float t, float a, float b)
+    {
+        return (a + ((b - a) * t));
+    }
 	
 	public void UpdateVelocityFieldStep_1(float visc, float dt, int chunkX, int chunkY, int NCOUNT, int startX, int startY)
 	{
@@ -1025,9 +1085,9 @@ public class FieldVisualizer : MonoBehaviour
 		//indices
 		int[] triangles = new int[(height - 1) * (width - 1) * 6];
 		int index = 0;
-		for (int y=0;y<height-1;y++)
+		for (int y = 0; y < height-1; ++y)
 		{
-			for (int x=0;x<width-1;x++)
+			for (int x = 0; x < width-1; ++x)
 			{
 				// For each grid cell output two triangles
 				triangles[index++] = (y * width) + x;
@@ -1041,13 +1101,8 @@ public class FieldVisualizer : MonoBehaviour
 		}
 		
 		mesh.triangles = triangles;
-		mesh.RecalculateNormals();
-		//mesh.tangents = tangents;
-		
-		
-		//Find particle system..
-		//ps = GameObject.Find("fluid particles").GetComponent<UnityEngine.ParticleSystem>();
-		//particles = new UnityEngine.ParticleSystem.Particle[arraySize];
+		//mesh.RecalculateNormals();
+		mesh.Optimize();
 	}
 		
 	public void UpdateLookBasedOnFluid(FluidFieldGenerator fluidField, float N, float vertDivsX, float vertDivsY, float fluidR, float fluidG, float fluidB, float Color_Ink_R, float Color_Ink_G, float Color_Ink_B)
@@ -1058,21 +1113,21 @@ public class FieldVisualizer : MonoBehaviour
 		for (int y = 0; y < height; ++y)
 		{
 			float yperc = (float)y / sh;
-			float fycord = beginYIdx + (yperc * N) / vertDivsY;
+			float fycord = beginYIdx + ((yperc * N) / vertDivsY);
 			int colorIdx = y*width;
 			
 			for (int x = 0; x < width; ++x)
 			{
 				float xperc = (float)x / sw;
-				float fxcord = beginXIdx + (xperc * N) / vertDivsX;
+				float fxcord = beginXIdx + ((xperc * N) / vertDivsX);
 				
 				float vval = Math.Abs (fluidField.SampleField(fluidField.u, fxcord, fycord));
-                vval += Math.Abs (fluidField.SampleField(fluidField.v, fxcord, fycord));
+                vval += Math.Abs(fluidField.SampleField(fluidField.v, fxcord, fycord));
 				float dval = fluidField.SampleField(fluidField.densityField, fxcord, fycord);
 				
-				float fr = vval * fluidR;
-				float fg = vval * fluidG;
-				float fb = vval * fluidB;
+				float fr = vval * (fluidR+(fluidField.amountOfAngriness*30));
+				float fg = vval * (fluidG+(fluidField.amountOfHappiness*30));
+				float fb = vval * (fluidB+(fluidField.amountOfSadness*30));
 				
 				float ir = dval * Color_Ink_R;
 				float ig = dval * Color_Ink_G;
@@ -1080,29 +1135,19 @@ public class FieldVisualizer : MonoBehaviour
 				
 				byte vertColorR = (byte)Math.Min(255, (fr+ir)*0.5f*255);
 				byte vertColorG = (byte)Math.Min(255, (fg+ig)*0.5f*255);
-				byte vertColorB = (byte)Math.Min(255, (fb+ib)*0.5f*255);				
+				byte vertColorB = (byte)Math.Min(255, (fb+ib)*0.5f*255);
 				
-				//byte horizontalVelocity = (byte)Math.Max(0, Math.Min(255, 255*vval));
-				//byte verticalVelocity = (byte)Math.Max(0, Math.Min(255, 255*uval));
-				//byte densityColor = (byte)Math.Max(0, Math.Min(255, 255*dval));
-				
-				//particles[colorIdx].color = new Color32(72, 194, 178, 0);
-				//particles[colorIdx].size = this.initialParticleGridSize;
-				//particles[colorIdx].lifetime += dt;
-				//particles[colorIdx].velocity = new Vector3(uval*100,-vval*100,0);
-				//particles[colorIdx].position += particles[colorIdx].velocity*dt;					
-				
-				int vidx = colorIdx+x;
+				int vidx = colorIdx + x;
 				vertColors[vidx].r = vertColorR;
 				vertColors[vidx].g = vertColorG;
 				vertColors[vidx].b = vertColorB;				
-				//vertices[colorIdx].z = densityColor*0.1f;
+				//vertPositions[vidx].z = vertColorR;
 			}
 		}
 		
 		Mesh mesh = GetComponent<MeshFilter>().mesh;
 		mesh.colors32 = vertColors;
-		mesh.vertices = vertPositions;
+		//mesh.vertices = vertPositions;
 		//mesh.RecalculateNormals();		
 	}
 }
