@@ -27,6 +27,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	public float SpiritGravity = 2.0f;
 	public float SpiritToPlayerAttraction = 3.0f;
 	public float SpritParticleSeperationDistance = 50;
+	private bool spiritParticlesAllConnected = false;
 	
 	public class SpiritParticle
 	{
@@ -86,6 +87,11 @@ public class FluidFieldGenerator : MonoBehaviour
 	
     private FieldChunk[,] chunks = null;
 	
+	
+	public bool SpiritParticlesAllConnected()
+	{
+		return spiritParticlesAllConnected;
+	}
 	
 	public class FieldChunk
     {
@@ -232,11 +238,9 @@ public class FluidFieldGenerator : MonoBehaviour
 		float prevHap = amountOfHappiness;
 		float prevAng = amountOfAngriness;
 		
-		
 		amountOfSadness = 0;
 		amountOfHappiness = 0;
 		amountOfAngriness = 0;
-		
 		
 		for(int m = 0; m < 2; ++m)
 		{
@@ -251,7 +255,7 @@ public class FluidFieldGenerator : MonoBehaviour
 			playerScreenPos[m].y = screenPos.y;
 			if(ownerPlayerMouseInfo[m].playerScript.doInkBurst)
 			{
-				DoInkBurst(screenPos.x, screenPos.y);
+				DoVelocityBurst(screenPos.x, screenPos.y, 10, 100);
 				ownerPlayerMouseInfo[m].playerScript.doInkBurst = false;
 			}
 			
@@ -305,9 +309,16 @@ public class FluidFieldGenerator : MonoBehaviour
 		
 		
 		
-		amountOfSadness = Mathf.Lerp(prevSad, amountOfSadness, 0.1f);
-		amountOfHappiness = Mathf.Lerp(prevHap, amountOfHappiness, 0.1f);
-		amountOfAngriness = Mathf.Lerp(prevAng, amountOfAngriness, 0.1f);
+		if(amountOfSadness > 0.5f)
+			amountOfSadness *= 10;
+		if(amountOfHappiness > 0.5f)
+			amountOfHappiness *= 10;
+		if(amountOfAngriness > 0.5f)
+			amountOfAngriness *= 10;
+		
+		amountOfSadness = Mathf.Lerp(prevSad, amountOfSadness, dt * 0.33f);
+		amountOfHappiness = Mathf.Lerp(prevHap, amountOfHappiness, dt * 0.33f);
+		amountOfAngriness = Mathf.Lerp(prevAng, amountOfAngriness, dt * 0.33f);
 			
 		if(doLinkInk)
 			InkAlongLine(playerScreenPos[0].x, playerScreenPos[0].y, playerScreenPos[1].x, playerScreenPos[1].y);
@@ -345,6 +356,9 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public void UpdateSpritParticles(Camera camcam)
 	{
+		if(spiritParticleSystem == null)
+			return;
+		
 		int pcount = Mathf.Min (maxSpiritParticles, spiritParticleSystem.particleCount);
 		UnityEngine.ParticleSystem.Particle[] particles = new UnityEngine.ParticleSystem.Particle[pcount];
 		spiritParticleSystem.GetParticles(particles);
@@ -353,6 +367,8 @@ public class FluidFieldGenerator : MonoBehaviour
 		float minLineDist = 50.0f;
 		
 		int pIdx = 1;		
+		int numConnectedParticles = 0;
+		
 		for(int i = 0; i < pcount; ++i)
 		{
 			SpiritParticle sp = spiritParticles[i];
@@ -361,12 +377,13 @@ public class FluidFieldGenerator : MonoBehaviour
 			int xCell = (int)(screenPos.x * N);
 			int yCell = (int)(screenPos.y * N);
 			
-			sp.velocity *= 0.98f;	//slow itself down!
+			sp.velocity *= 1.0f - (0.25f*Time.deltaTime);
 			
 			if(xCell >= 1 && xCell < N-1 && yCell >= 1 && yCell < N-1)
 			{
 				ppos.x += u[xCell,yCell] * 50.0f;
 				ppos.y += v[xCell,yCell] * 50.0f;
+				//this.densityField[xCell,yCell] += 0.01f;
 			}
 			else //bring em back towards the center of the screen
 			{
@@ -408,6 +425,7 @@ public class FluidFieldGenerator : MonoBehaviour
 					//Add a line between all these guys!
 					float alpha = 1-(len / minLineDist);
 					linesToDraw.Add(new LineToDraw(ppos, ppos2, new Color(1.0f, 1.0f, 1.0f, alpha)));
+					++numConnectedParticles;
 				}
 				
 				sub.Normalize();
@@ -426,6 +444,7 @@ public class FluidFieldGenerator : MonoBehaviour
 					
 				
 			}
+			
 			++pIdx;
 			
 			
@@ -439,6 +458,8 @@ public class FluidFieldGenerator : MonoBehaviour
 			particles[i].size = sp.mass * 10;
 		}
 		
+		
+		spiritParticlesAllConnected = numConnectedParticles == pcount;
 		spiritParticleSystem.SetParticles(particles, pcount);
 	}
 	
@@ -460,6 +481,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public void PostRenderParticles() 
 	{
+		DebugStreamer.message = "GOT HERE";
 		GL.PushMatrix();
 		material.SetPass(0);
 		
@@ -502,14 +524,25 @@ public class FluidFieldGenerator : MonoBehaviour
 	}
 	
 	
-	private void DoInkBurst(float posx1, float posy1)
+	public void DropInkAt(float worldPosx, float worldPosy, int radius, float burstStrength)
 	{
-		int radius = 10;
+		Vector3 screenPos = Camera.main.WorldToViewportPoint(new Vector3(worldPosx, worldPosy, 0));
+		DoInkBurst(screenPos.x, screenPos.y, radius, burstStrength);		
+	}
+	
+	public void DropVelocityAt(float worldPosx, float worldPosy, int radius, float burstStrength)
+	{
+		Vector3 screenPos = Camera.main.WorldToViewportPoint(new Vector3(worldPosx, worldPosy, 0));
+		DoVelocityBurst(screenPos.x, screenPos.y, radius, burstStrength);		
+	}
+	
+	private void DoVelocityBurst(float posx1, float posy1, int radius, float burstStrength)
+	{
 		int x1 = (int)(posx1 * N);
 		int y1 = (int)(posy1 * N);
 		
 		int hr = radius / 2;
-		float burstStrength = 100.0f;
+		
 		for(int i = x1-hr; i < x1+hr; ++i)
 		{
 			for(int j = y1-hr; j < y1+hr; ++j)
@@ -521,15 +554,34 @@ public class FluidFieldGenerator : MonoBehaviour
 				{
 					u0[i, j] = xDelta*burstStrength;
 					v0[i, j] = yDelta*burstStrength;
-					//prevDensityField[i, j] += 1.0f;
 				}
 			}
 		}		
 	}
 	
+	private void DoInkBurst(float posx1, float posy1, int radius, float burstStrength)
+	{
+		int x1 = (int)(posx1 * N);
+		int y1 = (int)(posy1 * N);
+		
+		int hr = radius / 2;
+		
+		for(int i = x1-hr; i < x1+hr; ++i)
+		{
+			for(int j = y1-hr; j < y1+hr; ++j)
+			{
+				int xDelta = x1-i;
+				int yDelta = y1-j;
+				
+				if(i >= 0 && i < N && j >= 0 && j < N)
+				{
+					prevDensityField[i, j] += burstStrength;
+				}
+			}
+		}		
+	}
 	
-	
-	private void InkAlongLine(float posx1, float posy1, float posx2, float posy2)
+	public void InkAlongLine(float posx1, float posy1, float posx2, float posy2)
 	{
 		int x1 =  (int)(posx1 * N);
 		int y1 =  (int)(posy1 * N);
@@ -553,7 +605,7 @@ public class FluidFieldGenerator : MonoBehaviour
         while (true)
         {
 			if(x1 >= 0 && x1 < N && y1 >= 0 && y1 < N)
-				densityField[x1, y1] = 1;
+				densityField[x1, y1] += 0.1f;
 			
             if (x1 == x2 && y2 == y1)
                 break;
@@ -1110,6 +1162,10 @@ public class FieldVisualizer : MonoBehaviour
         float sw = width-1;
         float sh = height-1;
 		
+		float sadColorRating = fluidField.amountOfSadness*0.5f;
+		float happyColorRating = fluidField.amountOfHappiness*0.5f;
+		float angryColorRating = fluidField.amountOfAngriness*0.5f;
+		
 		for (int y = 0; y < height; ++y)
 		{
 			float yperc = (float)y / sh;
@@ -1125,9 +1181,9 @@ public class FieldVisualizer : MonoBehaviour
                 vval += Math.Abs(fluidField.SampleField(fluidField.v, fxcord, fycord));
 				float dval = fluidField.SampleField(fluidField.densityField, fxcord, fycord);
 				
-				float fr = vval * (fluidR+(fluidField.amountOfAngriness*30));
-				float fg = vval * (fluidG+(fluidField.amountOfHappiness*30));
-				float fb = vval * (fluidB+(fluidField.amountOfSadness*30));
+				float fr = vval * (fluidR+angryColorRating);
+				float fg = vval * (fluidG+happyColorRating);
+				float fb = vval * (fluidB+sadColorRating);
 				
 				float ir = dval * Color_Ink_R;
 				float ig = dval * Color_Ink_G;
@@ -1140,7 +1196,7 @@ public class FieldVisualizer : MonoBehaviour
 				int vidx = colorIdx + x;
 				vertColors[vidx].r = vertColorR;
 				vertColors[vidx].g = vertColorG;
-				vertColors[vidx].b = vertColorB;				
+				vertColors[vidx].b = vertColorB;
 				//vertPositions[vidx].z = vertColorR;
 			}
 		}

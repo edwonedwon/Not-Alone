@@ -320,7 +320,7 @@ public class PlayerScript : MonoBehaviour
 		{
 			currentFeeling = newFeeling;
 			currentMovements.Reset();
-			doInkBurst = true;
+			//doInkBurst = true;
 		}
 	}
 	
