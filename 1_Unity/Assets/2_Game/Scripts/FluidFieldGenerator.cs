@@ -24,6 +24,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	private GameObject[,] fieldVisualizers = null;	    
 	
 	public ParticleSystem spiritParticleSystem = null;
+	
 	public float SpiritGravity = 2.0f;
 	public float SpiritToPlayerAttraction = 3.0f;
 	public float SpritParticleSeperationDistance = 50;
@@ -34,6 +35,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		public Vector2 velocity = Vector2.zero;
 		public Vector2 position = Vector2.zero;
 		public float mass = 1.0f;
+		public float initTime = 1.0f;
 		
 		public SpiritParticle(float m)
 		{
@@ -41,7 +43,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
 	};
 	
-	private int maxSpiritParticles = 250;
+	private int maxSpiritParticles = 0;
 	SpiritParticle[] spiritParticles;
 	
 	private struct PlayerMouseDownInfo
@@ -115,9 +117,33 @@ public class FluidFieldGenerator : MonoBehaviour
 		InitVisualizerField();
 		InitChunkFields();
 		
-		spiritParticles = new SpiritParticle[maxSpiritParticles];
-		for(int i = 0; i < maxSpiritParticles; ++i)
-			spiritParticles[i] = new SpiritParticle(UnityEngine.Random.Range(1.0f, 3.0f));
+		
+		spiritParticles = new SpiritParticle[150];
+		for(int i = 0; i < 150; ++i)	
+		{
+			spiritParticles[i] = new SpiritParticle(UnityEngine.Random.Range(3.0f, 30.0f));
+		}
+	}
+	
+	
+	void OnEnable()
+	{
+		networkView.enabled = true;
+	}
+	
+	
+	
+	
+	public void IncreaseSpiritParticles(int spiritChange, int playerNm)
+	{
+		networkView.RPC ("ChangeAmountOfSpirtParticles", RPCMode.All, spiritChange, playerNm);
+	}
+	
+	[RPC]
+	void ChangeAmountOfSpirtParticles(int spiritChange, int playerNm)
+	{
+		maxSpiritParticles += 1;
+		spiritParticles[maxSpiritParticles-1].position = ownerPlayerMouseInfo[playerNm].player.transform.position;
 	}
 	
 	private void InitVisualizerField()
@@ -359,108 +385,117 @@ public class FluidFieldGenerator : MonoBehaviour
 		if(spiritParticleSystem == null)
 			return;
 		
-		int pcount = Mathf.Min (maxSpiritParticles, spiritParticleSystem.particleCount);
+		int pcount = maxSpiritParticles;//spiritParticleSystem.particleCount;
 		UnityEngine.ParticleSystem.Particle[] particles = new UnityEngine.ParticleSystem.Particle[pcount];
-		spiritParticleSystem.GetParticles(particles);
+		//spiritParticleSystem.GetParticles(particles);
 		
 		Vector3 centerOfScreen = camcam.ViewportToWorldPoint(new Vector3(0.5f, 0.5f, 0.0f));
-		float minLineDist = 50.0f;
+		float minLineDist = 75.0f;
 		
 		int pIdx = 1;		
 		int numConnectedParticles = 0;
 		
+		float dt = Time.deltaTime;
+		
 		for(int i = 0; i < pcount; ++i)
 		{
 			SpiritParticle sp = spiritParticles[i];
-			Vector3 ppos = particles[i].position;
+			Vector3 ppos = sp.position;
 			Vector3 screenPos = camcam.WorldToViewportPoint(ppos);
 			int xCell = (int)(screenPos.x * N);
 			int yCell = (int)(screenPos.y * N);
 			
-			sp.velocity *= 1.0f - (0.25f*Time.deltaTime);
 			
-			if(xCell >= 1 && xCell < N-1 && yCell >= 1 && yCell < N-1)
+			sp.initTime -= dt;
+			if(sp.initTime > 0.0f)
 			{
-				ppos.x += u[xCell,yCell] * 50.0f;
-				ppos.y += v[xCell,yCell] * 50.0f;
-				//this.densityField[xCell,yCell] += 0.01f;
+				sp.mass = 1.0f - sp.initTime;
 			}
-			else //bring em back towards the center of the screen
-			{
-				Vector3 sub = centerOfScreen-ppos;
-				float len = sub.magnitude;
-				sub.Normalize();
-				sub *= ((SpiritGravity * (sp.mass * 100) / len));
-				sp.velocity.x += sub.x;
-				sp.velocity.y += sub.y;
-			}			
-			
-			//gravy towards player-finger-downs
-			for(int m = 0; m < 2; ++m)
-			{
-				if(ownerPlayerMouseInfo[m].player == null)
-					continue;
-				if(ownerPlayerMouseInfo[m].playerScript.MouseFingerDown() != PlayerScript.FingerState.None)
+			else
+			{			
+				sp.velocity *= 1.0f - (0.5f*dt);
+				
+				if(xCell >= 1 && xCell < N-1 && yCell >= 1 && yCell < N-1)
 				{
-					Vector3 sub = ownerPlayerMouseInfo[m].player.transform.position-ppos;
+					ppos.x += u[xCell,yCell] * 50.0f;
+					ppos.y += v[xCell,yCell] * 50.0f;
+					//this.densityField[xCell,yCell] += 0.01f;
+				}
+				else //bring em back towards the center of the screen
+				{
+					Vector3 sub = centerOfScreen-ppos;
 					float len = sub.magnitude;
 					sub.Normalize();
-					sub *= ((SpiritToPlayerAttraction * (sp.mass * 600) / len));
+					sub *= ((SpiritGravity * (sp.mass * 100) / len));
 					sp.velocity.x += sub.x;
 					sp.velocity.y += sub.y;
-				}				
+				}			
+				
+				//gravy towards player-finger-downs
+				for(int m = 0; m < 2; ++m)
+				{
+					if(ownerPlayerMouseInfo[m].player == null)
+						continue;
+					if(ownerPlayerMouseInfo[m].playerScript.MouseFingerDown() != PlayerScript.FingerState.None)
+					{
+						Vector3 sub = ownerPlayerMouseInfo[m].player.transform.position-ppos;
+						float len = sub.magnitude;
+						sub.Normalize();
+						sub *= ((SpiritToPlayerAttraction * (sp.mass * 400) / len));
+						sp.velocity.x += sub.x;
+						sp.velocity.y += sub.y;
+					}				
+				}
+				
+				
+				//Do N-Body gravitations!
+				for(int j = pIdx; j < pcount; ++j)
+				{
+					SpiritParticle sp2 = spiritParticles[j];				
+					Vector3 ppos2 = sp2.position;
+					Vector3 sub = ppos2-ppos;
+					float len = sub.magnitude;
+					
+					if(len < minLineDist)
+					{
+						//Add a line between all these guys!
+						float alpha = 1-(len / minLineDist);
+						linesToDraw.Add(new LineToDraw(ppos, ppos2, new Color(1.0f, 1.0f, 1.0f, alpha)));
+						++numConnectedParticles;
+					}
+					
+					sub.Normalize();
+					sub *= ((SpiritGravity * (sp.mass * sp2.mass) / len)) * 0.25f;
+						
+					if(len < SpritParticleSeperationDistance)
+					{
+						sp.velocity.x -= sub.x;
+						sp.velocity.y -= sub.y;
+					}
+					else
+					{
+						sp.velocity.x += sub.x;
+						sp.velocity.y += sub.y;
+					}				
+				}
 			}
 			
+			++pIdx;			
 			
-			//Do N-Body gravitations!
-			for(int j = pIdx; j < pcount; ++j)
-			{
-				SpiritParticle sp2 = spiritParticles[j];				
-				Vector3 ppos2 = particles[j].position;
-				Vector3 sub = ppos2-ppos;
-				float len = sub.magnitude;
-				
-				if(len < minLineDist)
-				{
-					//Add a line between all these guys!
-					float alpha = 1-(len / minLineDist);
-					linesToDraw.Add(new LineToDraw(ppos, ppos2, new Color(1.0f, 1.0f, 1.0f, alpha)));
-					++numConnectedParticles;
-				}
-				
-				sub.Normalize();
-				sub *= ((SpiritGravity * (sp.mass * sp2.mass) / len));
-					
-				if(len < SpritParticleSeperationDistance)
-				{
-					sp.velocity.x -= sub.x;
-					sp.velocity.y -= sub.y;
-				}
-				else
-				{
-					sp.velocity.x += sub.x;
-					sp.velocity.y += sub.y;
-				}
-					
-				
-			}
+			ppos.x += sp.velocity.x * dt;
+			ppos.y += sp.velocity.y * dt;
 			
-			++pIdx;
-			
-			
-			ppos.x += sp.velocity.x * Time.deltaTime;
-			ppos.y += sp.velocity.y * Time.deltaTime;
 			sp.position = ppos;
-			
 			particles[i].startLifetime = 2.5f;
 			particles[i].lifetime = 5.0f;
 			particles[i].position = ppos;
-			particles[i].size = sp.mass * 10;
+			particles[i].size = sp.mass * 30;
+			particles[i].color = new Color32(248, 168, 255, 255);
 		}
 		
-		
-		spiritParticlesAllConnected = numConnectedParticles == pcount;
-		spiritParticleSystem.SetParticles(particles, pcount);
+		//DebugStreamer.message = "maxSpiritParticles: " + maxSpiritParticles.ToString();
+		spiritParticlesAllConnected = numConnectedParticles == maxSpiritParticles;
+		spiritParticleSystem.SetParticles(particles, maxSpiritParticles);
 	}
 	
 	
@@ -481,7 +516,6 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public void PostRenderParticles() 
 	{
-		DebugStreamer.message = "GOT HERE";
 		GL.PushMatrix();
 		material.SetPass(0);
 		
@@ -534,6 +568,24 @@ public class FluidFieldGenerator : MonoBehaviour
 	{
 		Vector3 screenPos = Camera.main.WorldToViewportPoint(new Vector3(worldPosx, worldPosy, 0));
 		DoVelocityBurst(screenPos.x, screenPos.y, radius, burstStrength);		
+	}
+	
+	public void DropVelocityInDirection(float worldPosx, float worldPosy, float dirx, float diry, float burstStrength)
+	{
+		Vector2 screenPos1 = Camera.main.WorldToViewportPoint(new Vector2(worldPosx, worldPosy));
+		DoVelocityInDirection(screenPos1.x, screenPos1.y, dirx, diry, burstStrength);		
+	}
+	
+	private void DoVelocityInDirection(float posx1, float posy1, float dirx, float diry, float burstStrength)
+	{
+		int x1 = (int)(posx1 * N);
+		int y1 = (int)(posy1 * N);
+		
+		if(x1 >= 0 && x1 < N && y1 >= 0 && y1 < N)
+		{
+			u0[x1, y1] = dirx*burstStrength;
+			v0[x1, y1] = diry*burstStrength;
+		}
 	}
 	
 	private void DoVelocityBurst(float posx1, float posy1, int radius, float burstStrength)
@@ -1181,17 +1233,17 @@ public class FieldVisualizer : MonoBehaviour
                 vval += Math.Abs(fluidField.SampleField(fluidField.v, fxcord, fycord));
 				float dval = fluidField.SampleField(fluidField.densityField, fxcord, fycord);
 				
-				float fr = vval * (fluidR+angryColorRating);
-				float fg = vval * (fluidG+happyColorRating);
-				float fb = vval * (fluidB+sadColorRating);
+				float fr = vval * (fluidR);//+angryColorRating);
+				float fg = vval * (fluidG);//+happyColorRating);
+				float fb = vval * (fluidB);//+sadColorRating);
 				
 				float ir = dval * Color_Ink_R;
 				float ig = dval * Color_Ink_G;
 				float ib = dval * Color_Ink_B;
 				
-				byte vertColorR = (byte)Math.Min(255, (fr+ir)*0.5f*255);
-				byte vertColorG = (byte)Math.Min(255, (fg+ig)*0.5f*255);
-				byte vertColorB = (byte)Math.Min(255, (fb+ib)*0.5f*255);
+				byte vertColorR = (byte)Math.Min(255, (fr+ir)*0.5f);
+				byte vertColorG = (byte)Math.Min(255, (fg+ig)*0.5f);
+				byte vertColorB = (byte)Math.Min(255, (fb+ib)*0.5f);
 				
 				int vidx = colorIdx + x;
 				vertColors[vidx].r = vertColorR;

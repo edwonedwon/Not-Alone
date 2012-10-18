@@ -11,6 +11,7 @@ public class PlayerScript : MonoBehaviour
 		Single = 0,
 		Both = 1,
 	};
+	
 	private FingerState currentFingerState = FingerState.None;//neither!
 	private FingerState previousFingerState = FingerState.None;		//no difference
 	
@@ -23,6 +24,9 @@ public class PlayerScript : MonoBehaviour
 	public float totalHappiness = 0;
 	public float totalAngriness = 0;
 	
+	private FluidFieldGenerator fluidField = null;
+	
+	public GameObject PinchCreateObjectPrefab = null;
 	
 	public enum PlayerFeeling
 	{
@@ -186,7 +190,7 @@ public class PlayerScript : MonoBehaviour
 			//debugMsg += "\naps: " + aps.ToString("f2");
 			//debugMsg += "\ndistancePerSecond: " + distancePerSecond.ToString("f2");
 			debugMsg += "\ncurrent feeling: " + curFeeling.ToString();
-			DebugStreamer.message = debugMsg;
+			//DebugStreamer.message = debugMsg;
 			
 			if(TimeSinceLastFeelingChange < 3.50f)
 				return curFeeling;
@@ -205,6 +209,11 @@ public class PlayerScript : MonoBehaviour
 	
 	private PlayerFeeling currentFeeling = PlayerFeeling.Happy;
 	private PlayerMovements currentMovements = new PlayerMovements();
+	
+	
+	private int numberOfTapsInSameSpot = 0;
+	private Vector2 lastMouseDownPos = Vector2.zero;
+	
 	
 
 	public tk2dAnimatedSprite touchAnim;
@@ -232,6 +241,8 @@ public class PlayerScript : MonoBehaviour
 	
 	void Start()
 	{
+		fluidField = GameObject.FindGameObjectWithTag("fluidField").GetComponent<FluidFieldGenerator>();
+		
 		isPlayer1 = gameObject.tag == "PLAYER1";
 		
 		if(Network.isClient && isPlayer1)
@@ -271,6 +282,11 @@ public class PlayerScript : MonoBehaviour
 	{
 
 	}
+	
+	
+	
+	
+	
 	
 	void Update()
 	{
@@ -333,6 +349,7 @@ public class PlayerScript : MonoBehaviour
 			touchAnim.Play(touchAnimations[1]);	break;
 		}
 	}
+		
 	
 	public void UpdateAgainstBlackHole(BlackHoleScript blackHole)
 	{
@@ -412,18 +429,57 @@ public class PlayerScript : MonoBehaviour
 	public void OnPlayerFingerDown (int finger, Vector2 pos)
 	{		
 		audio.Play();
-		currentMousePoints.Add(pos);
 		
+		currentMousePoints.Add(pos);
 		currentMovements.CalculateMovementBounds(pos);
 		currentMovements.CalculateCurrentQuadrant(pos);
 		
 		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(pos.x, pos.y, zOffset));
-		currentFingerState = (FingerState)finger;
+		
 		mouseIsMovingWhileDown = true;
 		
 		currentMovements.NumTouchDowns += 1;
 		currentMovements.TimeSinceLastTouchDown = 0.0f;
+		
+		
+		
+		//game-mode: tapping in same spot calling out plankton
+		if(currentFingerState != (FingerState)finger)
+		{
+			Vector2 v2D = transform.position;
+			
+			currentFingerState = (FingerState)finger;
+			if(currentFingerState == FingerState.Single)
+			{
+				if(PinchCreateObjectPrefab != null)
+				{
+					Network.Instantiate(PinchCreateObjectPrefab, v2D, Quaternion.identity, 0);
+				}				
+				
+				Vector2 diff = lastMouseDownPos - pos;
+				
+				if(diff.magnitude < 30.0f)
+				{
+					if(++numberOfTapsInSameSpot > 3)
+					{
+						if(UnityEngine.Random.Range (0, 100) > 50.0f)						
+							fluidField.IncreaseSpiritParticles(1, 0);						
+					}
+				}
+				else
+				{
+					numberOfTapsInSameSpot = 0;
+				}
+				
+				//DebugStreamer.message = "numberOfTapsInSameSpot: " + numberOfTapsInSameSpot.ToString();
+			}
+		}
+		
+		lastMouseDownPos = pos;
 	}
+	
+	
+	
 	
 	public void OnPlayerFingerMove (int finger, Vector2 pos)
 	{		
@@ -518,6 +574,18 @@ public class PlayerScript : MonoBehaviour
 		previousMangle = 0;
 		currentMousePoints.Clear();
 		currentMovements.ResetHitQuadrants();
+	}
+	
+	
+	
+	public void OnPinchEnd (Vector2 fingerPos1, Vector2 fingerPos2)		
+	{
+		if(PinchCreateObjectPrefab != null)
+		{
+			Vector2 diff = fingerPos2-fingerPos1;
+			if(diff.magnitude < 10.0f)
+				Network.Instantiate(PinchCreateObjectPrefab, fingerPos1 + (diff*0.5f), Quaternion.identity, 0);
+		}
 	}
 	
 	#endregion
