@@ -5,22 +5,18 @@ public class DefaultCameraScript : MonoBehaviour
 {
 	public FluidFieldGenerator field = null;
 	
-	
-	
 	void Start ()
 	{
 	
 	}
 	
-
 	void Update ()
 	{
 	
 	}
 	
 	void OnPostRender()
-	{
-		
-		field.PostRenderParticles();		
+	{		
+		field.PostRenderParticles();
 	}
 }

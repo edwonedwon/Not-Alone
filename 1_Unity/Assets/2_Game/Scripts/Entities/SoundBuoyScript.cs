@@ -2,13 +2,14 @@ using UnityEngine;
 using System.Collections;
 
 public class SoundBuoyScript : MonoBehaviour
-{	
+{
+	static ArrayList WorldBuoysList = new ArrayList();
+	
 	private FluidFieldGenerator fluidField = null;
 	public tk2dAnimatedSprite sprite = null;
 	public GameObject flareTemplate = null;
 	
-	public int radius = 30;
-	public float velocityPower = 190.0f;
+	public float riverPower = 2.0f;
 	
 	public bool BurstActivated = false;
 	public bool SoundActivated = false;
@@ -17,8 +18,6 @@ public class SoundBuoyScript : MonoBehaviour
 	private float DeactiveTimer = 0.0f;
 	private int activatedFrames = -1;
 	private int numCirclesCompleted = 0;
-	public Vector3 spewingDirection = new Vector3(1, 1, 1);
-	public float spewRotation = 0.0f;
 	private Vector3 originalScale = Vector3.one;
 	
 	private PlayerScript player1 = null;
@@ -29,7 +28,28 @@ public class SoundBuoyScript : MonoBehaviour
 	private ArrayList p1MovementPoints = new ArrayList(250);
 	
 	void Start()
-	{		
+	{
+		int maxBuoys = 4;	//max limit available
+		if(WorldBuoysList.Count > 0)
+		{
+			bool tooCloseToOThers = false;
+			foreach(SoundBuoyScript sbs in WorldBuoysList)
+			{
+				if((sbs.transform.position-this.transform.position).magnitude < 100)
+				{
+					tooCloseToOThers = true;
+					break;
+				}
+			}
+			
+			if(WorldBuoysList.Count >= maxBuoys || tooCloseToOThers)
+			{
+				DestroyImmediate(gameObject);
+				return;
+			}
+		}		
+		
+		WorldBuoysList.Add(this);
 		fluidField = GameObject.FindGameObjectWithTag("fluidField").GetComponent<FluidFieldGenerator>();
 	}	
 	
@@ -41,7 +61,7 @@ public class SoundBuoyScript : MonoBehaviour
 	
 	void OnDisable()
 	{
-
+		WorldBuoysList.Remove(this);
 	}
 	
 	public void AddToRotationSpeed(float additionalRot, int playerNm)
@@ -64,7 +84,7 @@ public class SoundBuoyScript : MonoBehaviour
 	
 	int NumCirclesAroundBuoy()
 	{
-		Vector3 blackHoleCenter = (transform.position);
+		Vector3 centre = transform.position;
 		
 		float compundedMangle = 0.0f;
         float totalmangle = 0.0f;
@@ -74,32 +94,32 @@ public class SoundBuoyScript : MonoBehaviour
             Vector2 old = (Vector2)p1MovementPoints[i - 1];
             Vector2 cur = (Vector2)p1MovementPoints[i];
 
-            float yDistCur = cur.y - blackHoleCenter.y;
-            float xDistCur = cur.x - blackHoleCenter.x;
+            float yDistCur = cur.y - centre.y;
+            float xDistCur = cur.x - centre.x;
 
-            float yDistOld = old.y - blackHoleCenter.y;
-            float xDistOld = old.x - blackHoleCenter.x;
+            float yDistOld = old.y - centre.y;
+            float xDistOld = old.x - centre.x;
 
-            float maxRadius = 150;
+            float maxRadius = 250;
             float minRadius = 15;
 
-            float curLen = (float)System.Math.Sqrt((xDistCur * xDistCur) + (yDistCur * yDistCur));
+            float curLen = Mathf.Sqrt((xDistCur * xDistCur) + (yDistCur * yDistCur));
             //float oldLen = (float)System.Math.Sqrt((xDistOld * xDistOld) + (yDistOld * yDistOld));
 
             if (curLen > minRadius && curLen < maxRadius)
             {
-                float degsCur = ToDegrees((float)System.Math.Atan2(yDistCur, xDistCur));
-                float degresOld = ToDegrees((float)System.Math.Atan2(yDistOld, xDistOld));
+                float degsCur = Mathf.Atan2(yDistCur, xDistCur);
+                float degresOld = Mathf.Atan2(yDistOld, xDistOld);
 
                 if (System.Math.Sign(degresOld) == System.Math.Sign(degsCur))
                 {
-                    compundedMangle += System.Math.Abs(System.Math.Abs(degsCur) - System.Math.Abs(degresOld));
+                    compundedMangle += Mathf.Abs(Mathf.Abs(degsCur) - Mathf.Abs(degresOld));
                     totalmangle += degsCur - degresOld;
                 }
             }
         }
 		
-		return (int)(Mathf.Abs(totalmangle) / 310.0f);
+		return (int)(Mathf.Abs(ToDegrees(totalmangle)) / 270.0f);	//less than 360 because we want to count looping-sorta
 	}
 	
 	public float ToDegrees(float radians)
@@ -107,7 +127,7 @@ public class SoundBuoyScript : MonoBehaviour
 		return radians * (180.0f / 3.14159265359f);
 	}
 	
-	void Update()
+	void FixedUpdate()
 	{
 		if(p1 == null)
 		{
@@ -125,7 +145,7 @@ public class SoundBuoyScript : MonoBehaviour
 		if(p1 == null)// || p2 == null)
 			return;
 		
-		float dt = Time.deltaTime;
+		float dt = Time.fixedDeltaTime;
 		
 		PlayerScript.FingerState p1finger = player1.MouseFingerDown();
 		//PlayerScript.FingerState p2finger = player1.MouseFingerDown();
@@ -136,13 +156,6 @@ public class SoundBuoyScript : MonoBehaviour
 		Vector2 vMe = transform.position;
 		Vector2 v1 = p1.transform.position;
 		//Vector2 v2 = p2.transform.position;
-		Vector2 v1Diff = v1-vMe;
-		
-		for(int i = 0; i < newcircles; ++i)
-		{
-			Network.Instantiate(flareTemplate, transform.position, Quaternion.identity, 0);
-			fluidField.DropVelocityInDirection(vMe.x, vMe.y, v1Diff.x, v1Diff.y, velocityPower);
-		}
 		
 		Vector3 scale = transform.localScale;
 		scale = Vector2.Lerp(scale, originalScale*(Mathf.Abs(Mathf.Cos(Time.realtimeSinceStartup*7)) * 1.3f + 0.4f), 3.0f*dt);
@@ -150,27 +163,34 @@ public class SoundBuoyScript : MonoBehaviour
 		
 		float increaseRate = 3.0f;
 		float decreaseRate = 5.0f;
+		Vector2 vBurstDirection = v1-vMe;
 		
 		if(SoundActivated)
 		{
 			if(ActivatedWithOther != null)
-			{	
+			{
 				Vector2 vOther = ActivatedWithOther.transform.position;
-				Vector2 adiff = vMe - vOther;
-				adiff.Normalize();
-				
-				
-				float power = UnityEngine.Random.Range(10.0f, 25.0f);
-				fluidField.DropVelocityInDirection(vMe.x, vMe.y, adiff.x, adiff.y, power);
+				vBurstDirection = vOther-vMe;
+				float power = UnityEngine.Random.Range(0.0f, 0.065f);
+				fluidField.DropVelocityInDirection(vMe.x, vMe.y, vBurstDirection.x, vBurstDirection.y, power);
+				sprite.color = Color.Lerp(sprite.color, Color.white, dt*increaseRate);
 			}
-		}
+		}		
+		
+		vBurstDirection.Normalize();
+		for(int i = 0; i < newcircles; ++i)
+		{
+			Network.Instantiate(flareTemplate, transform.position, Quaternion.identity, 0);
+			fluidField.DropVelocityInDirection(vMe.x, vMe.y, vBurstDirection.x, vBurstDirection.y, riverPower);
+		}		
 		
 		if(BurstActivated || SoundActivated)
 		{
 			++activatedFrames;
-			sprite.color = Color.Lerp(sprite.color, Color.white, dt*increaseRate);
+			if(BurstActivated)
+				sprite.color = Color.Lerp(sprite.color, Color.blue, dt*increaseRate);
 			DeactiveTimer -= Time.fixedDeltaTime;
-			if(DeactiveTimer < 0.0f && !SoundActivated)
+			if(DeactiveTimer < 0.0f)
 			{
 				activatedFrames = -1;
 				BurstActivated = false;
@@ -186,37 +206,29 @@ public class SoundBuoyScript : MonoBehaviour
 		{
 			numCirclesCompleted = 0;
 			p1MovementPoints.Clear();
-			return;
 		}
+		
 		
 		int p1MovementsCount = p1MovementPoints.Count;
 		p1MovementPoints.Add(v1);
 		if(p1MovementsCount > 249)
 			p1MovementPoints.RemoveAt(0);	//then remove the last one!		
 		
-		if(!SoundActivated && circles > 10)
+		//Connect to the nextly created buoy
+		int cnt = WorldBuoysList.Count;		
+		if(cnt > 1 && !SoundActivated && circles > 5)
 		{
-			SoundActivated = true;
-			
 			if(ActivatedWithOther == null)
 			{
-				GameObject[] otherList = GameObject.FindGameObjectsWithTag("buoy");
-				
-				foreach(GameObject go in otherList)
+				int myIdx = WorldBuoysList.IndexOf(this);				
+				if(myIdx < cnt-1)
 				{
-					SoundBuoyScript sbs = go.GetComponent<SoundBuoyScript>();	
-					if(go == gameObject)
-						continue;
-					
-					if(sbs != null && sbs.SoundActivated && sbs.ActivatedWithOther != this)
-					{
-						DebugStreamer.message = "FOUND ANOTHER!";
-						//sbs.ActivatedWithOther = this;
-						this.ActivatedWithOther = sbs;						
-						break;
-					}						
+					ActivatedWithOther = (SoundBuoyScript)WorldBuoysList[myIdx+1];
+					SoundActivated = true;
 				}
-			}			
+				else if(myIdx > 0)
+					ActivatedWithOther = (SoundBuoyScript)WorldBuoysList[0];
+			}		
 		}
 		/*
 		else

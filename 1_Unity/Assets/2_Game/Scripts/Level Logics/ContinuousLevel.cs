@@ -62,7 +62,7 @@ public class ContinuousLevel : MonoBehaviour
 	
 	
 	
-	void Update ()
+	void FixedUpdate ()
 	{
 		if(p1 == null)
 		{
@@ -100,11 +100,18 @@ public class ContinuousLevel : MonoBehaviour
 		}
 		else
 		{
+			if(timeTogetherNotMoving >= 1.0f)
+			{
+				player1.SetDoLinkInk(true);
+				player2.SetDoLinkInk(true);
+			}
 			timeTogetherNotMoving = 0.0f;
 		}
 		
-		
-		
-		
+		if(p1finger != PlayerScript.FingerState.Single || p2finger != PlayerScript.FingerState.Single)
+		{
+			player1.SetDoLinkInk(false);
+			player2.SetDoLinkInk(false);
+		}	
 	}
 }

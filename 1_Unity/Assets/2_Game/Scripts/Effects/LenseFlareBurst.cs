@@ -17,7 +17,7 @@ public class LenseFlareBurst : MonoBehaviour
 	}
 	
 	
-	void Update ()
+	void FixedUpdate ()
 	{
 		float fixedDt = Time.fixedDeltaTime;
 		curTimer += fixedDt;

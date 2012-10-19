@@ -52,7 +52,7 @@ public class BlackHoleScript : MonoBehaviour
 			RotationSpeed = newRotationSpeed;
 	}
 	
-	void Update()
+	void FixedUpdate()
 	{
 		if(fluidField == null)
 		{

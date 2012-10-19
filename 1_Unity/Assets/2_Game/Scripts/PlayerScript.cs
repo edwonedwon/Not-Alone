@@ -25,7 +25,6 @@ public class PlayerScript : MonoBehaviour
 	public float totalAngriness = 0;
 	
 	private FluidFieldGenerator fluidField = null;
-	
 	public GameObject PinchCreateObjectPrefab = null;
 	
 	public enum PlayerFeeling
@@ -39,8 +38,18 @@ public class PlayerScript : MonoBehaviour
 	{
 		public int NumTouchDowns = 0;
 		
-		public int QuadrantDensity = 16;
-		public int[,] QuadrantsTouched;
+		public int QuadrantDensity = 64;
+		public struct Quad
+		{
+			public bool touched;
+			public int timer;
+			public Quad(bool t, int ti)
+			{
+				touched = t;
+				timer = ti;				
+			}
+		};
+		public Quad[,] QuadrantsTouched;
 		
 		public float TimeSinceLastFeelingChange = 0.0f;
 		public float TimeSinceLastMouseMove = 0.0f;
@@ -60,7 +69,11 @@ public class PlayerScript : MonoBehaviour
 		
 		public PlayerMovements()
 		{
-			QuadrantsTouched = new int[QuadrantDensity, QuadrantDensity];
+			QuadrantsTouched = new Quad[QuadrantDensity, QuadrantDensity];
+			for(int i = 0; i < QuadrantDensity; ++i)
+				for(int j = 0; j < QuadrantDensity; ++j)
+					QuadrantsTouched[i,j] = new Quad(false, 0);					
+				
 			Reset();
 		}
 		
@@ -68,19 +81,45 @@ public class PlayerScript : MonoBehaviour
 		{
 			NumTouchDowns = 0;
 			TimeSinceLastFeelingChange = 0.0f;
-			minBounds = maxBounds = Vector2.zero;
-			
+			minBounds = maxBounds = Vector2.zero;			
 		}
 		
-		public void ResetHitQuadrants()
+		public bool ResetHitQuadrants()
 		{
 			TotalAngleChanges = 0.0f;
 			LineIntersects = 0;
 			DistanceTraveled = 0.0f;
 			
+			int borderSquaresCovered = 0;
+			int innerSquresCovered = 0;
+			int borderSize = 7;
 			for(int i = 0; i < QuadrantDensity; ++i)
+			{
 				for(int j = 0; j < QuadrantDensity; ++j)
-					QuadrantsTouched[i,j] = 0;
+				{
+					if(QuadrantsTouched[i,j].touched)
+					{
+						if(i < borderSize || i > QuadrantDensity-borderSize || j < borderSize || j > QuadrantDensity-borderSize)
+							++borderSquaresCovered;
+						else
+							++innerSquresCovered;	
+					}
+					
+					QuadrantsTouched[i,j].touched = false;
+					QuadrantsTouched[i,j].timer = 0;
+				}
+			}
+			
+			
+			//string msg = "innerSquresCovered: " + innerSquresCovered.ToString() +
+			//"\nborderSquaresCovered: " + borderSquaresCovered.ToString() +
+			//		"\nQuadrantDensity x 4: " + (QuadrantDensity*4).ToString();
+			//DebugStreamer.message = msg;
+			
+			if(innerSquresCovered < 10 && borderSquaresCovered > 150)
+				return true;
+			
+			return false;
 		}
 		
 		
@@ -115,12 +154,11 @@ public class PlayerScript : MonoBehaviour
 			int xQuadrant = (int)(xp * (QuadrantDensity-1));
 			int yQuadrant = (int)(yp * (QuadrantDensity-1));
 			
-			if(QuadrantsTouched[xQuadrant, yQuadrant] == 0)
+			if(!QuadrantsTouched[xQuadrant, yQuadrant].touched)
 				timeBetweenDifferentQuadrants = 0.0f;	//reset quandrant timer
 			
-			QuadrantsTouched[xQuadrant, yQuadrant] = 100;
-			//if(QuadrantsTouched[xQuadrant, yQuadrant] > 100)
-			//	QuadrantsTouched[xQuadrant, yQuadrant] = 100;
+			QuadrantsTouched[xQuadrant, yQuadrant].touched = true;
+			QuadrantsTouched[xQuadrant, yQuadrant].timer = 100;
 		}
 		
 		
@@ -133,11 +171,11 @@ public class PlayerScript : MonoBehaviour
 			{
 				for(int j = 0; j < QuadrantDensity; ++j)
 				{
-					QuadrantsTouched[i,j] -= 1;
-					if(QuadrantsTouched[i,j] < 0)
-						QuadrantsTouched[i,j] = 0;
+					QuadrantsTouched[i,j].timer -= 1;
+					if(QuadrantsTouched[i,j].timer < 0)
+						QuadrantsTouched[i,j].timer = 0;
 					
-					if(QuadrantsTouched[i,j] > 0)
+					if(QuadrantsTouched[i,j].timer > 0)
 						++quadsTouched;
 				}
 			}			
@@ -229,10 +267,12 @@ public class PlayerScript : MonoBehaviour
 	{
 		return currentFingerState;
 	}
+	
 	public bool DoLinkInk()
 	{
-		return doLinkInk;	
+		return doLinkInk;
 	}
+	
 	public void SetDoLinkInk(bool link)
 	{
 		doLinkInk = link;
@@ -288,7 +328,7 @@ public class PlayerScript : MonoBehaviour
 	
 	
 	
-	void Update()
+	void FixedUpdate()
 	{
 		if(previousFingerState != currentFingerState)
 		{
@@ -441,8 +481,7 @@ public class PlayerScript : MonoBehaviour
 		currentMovements.NumTouchDowns += 1;
 		currentMovements.TimeSinceLastTouchDown = 0.0f;
 		
-		
-		
+
 		//game-mode: tapping in same spot calling out plankton
 		if(currentFingerState != (FingerState)finger)
 		{
@@ -451,6 +490,7 @@ public class PlayerScript : MonoBehaviour
 			currentFingerState = (FingerState)finger;
 			if(currentFingerState == FingerState.Single)
 			{
+				//current semi-hack to place pinched-prefab object. must also be handled in the OnPinchEnd()
 				if(PinchCreateObjectPrefab != null)
 				{
 					Network.Instantiate(PinchCreateObjectPrefab, v2D, Quaternion.identity, 0);
@@ -564,8 +604,6 @@ public class PlayerScript : MonoBehaviour
         }
         return false;   //parallellllll
     }
-
-	
 	
 	public void OnPlayerFingerUp (int finger, Vector2 pos, float timeHeldDown)
 	{
@@ -573,10 +611,13 @@ public class PlayerScript : MonoBehaviour
 		currentFingerState = FingerState.None;
 		previousMangle = 0;
 		currentMousePoints.Clear();
-		currentMovements.ResetHitQuadrants();
+		
+		if(currentMovements.ResetHitQuadrants())
+		{
+			fluidField.ChangeColors();
+			//change the level colah!
+		}
 	}
-	
-	
 	
 	public void OnPinchEnd (Vector2 fingerPos1, Vector2 fingerPos2)		
 	{

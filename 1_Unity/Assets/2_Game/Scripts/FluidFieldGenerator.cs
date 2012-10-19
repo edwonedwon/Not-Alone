@@ -29,6 +29,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	public float SpiritToPlayerAttraction = 3.0f;
 	public float SpritParticleSeperationDistance = 50;
 	private bool spiritParticlesAllConnected = false;
+	public float SpirtParticlesEffectedByGridVelocity = 8.0f;
 	
 	public class SpiritParticle
 	{
@@ -68,14 +69,6 @@ public class FluidFieldGenerator : MonoBehaviour
 	public float Player_2_MouseRadius = 50;
 	public float Player_2_InkFlow = 0;
 	public float Player_2_VelocityFlow = 1;	
-	
-	public float Color_Fluid_R = 0.0f;
-	public float Color_Fluid_G = 0.0f;
-	public float Color_Fluid_B = 1.0f;
-	
-	public float Color_Ink_R = 0.0f;
-	public float Color_Ink_G = 1.0f;
-	public float Color_Ink_B = 0.0f;
 	
 	private PlayerMouseDownInfo[] ownerPlayerMouseInfo = new PlayerMouseDownInfo[2];
 	
@@ -117,7 +110,6 @@ public class FluidFieldGenerator : MonoBehaviour
 		InitVisualizerField();
 		InitChunkFields();
 		
-		
 		spiritParticles = new SpiritParticle[150];
 		for(int i = 0; i < 150; ++i)	
 		{
@@ -125,14 +117,126 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
 	}
 	
+	public Color FluidColor = Color.red;
+	public Color InkColor = Color.cyan;
 	
 	void OnEnable()
 	{
 		networkView.enabled = true;
 	}
 	
+	public void ChangeColors()
+	{
+		networkView.RPC ("RotateColors", RPCMode.All);
+	}
 	
+	[RPC]	
+	void RotateColors()
+	{
+		float h1, s1, v1;
+		float h2, s2, v2;
+		
+		RGBToHSV(FluidColor, out h1, out s1, out v1);
+		RGBToHSV(InkColor, out h2, out s2, out v2);
+			
+		h1 += UnityEngine.Random.Range(-270.0f, 270.0f);
+		h2 = h1 + 180.0f;
+		
+		if(h1 > 360.0f)
+			h1 -= 360.0f;
+		if(h2 > 360.0f)
+			h2 -= 360.0f;
+		if(h1 < 0.0f)
+			h1 += 360.0f;
+		if(h2 < 0.0f)
+			h2 += 360.0f;
+		
+		FluidColor = HSVToRGB(h1, s1, v1, 1.0f);
+		InkColor = HSVToRGB(h2, s2, v2, 1.0f);
+	}
 	
+	public Color HSVToRGB(float h, float s, float v, float alpha)
+	{
+	    int V = (int)(v * 255);
+	    if (s > 0.0f)
+	    {
+	        float H = (h / 360.0f) * 6;
+	
+	        int HFloor = (int)Math.Floor(H);    //split the hue up into 6 segments. Like a pizza!
+	        float F = H - HFloor;
+	        float v255 = 255 * v;
+	
+	        //our RGABC's!
+	        int R = V;
+	        int G = V;
+	        int A = (int)(v255 * (1 - s));
+	        int B = (int)(v255 * (1 - (s * F)));
+	        int C = (int)(v255 * (1 - (s * (1 - F))));
+	        
+	        switch (HFloor)
+	        {
+	            case 0: R = V; G = C; B = A; break;
+	            case 1: R = B; G = V; B = A; break;
+	            case 2: R = A; G = V; B = C; break;
+	            case 3: R = A; G = B; B = V; break;
+	            case 4: R = C; G = A; B = V; break;
+	            case 5: R = V; G = A; break;
+	            default: B = V; break;  //because RG are defaulted to V
+	        }
+	
+	        if (R < 0) R = 0;
+	        else if (R > 255) R = 255;
+	
+	        if (G < 0) G = 0;
+	        else if (G > 255) G = 255;
+	
+	        if (B < 0) B = 0;
+	        else if (B > 255) B = 255;
+	
+	        return new Color(R/255.0f, G/255.0f, B/255.0f, alpha);
+	    }
+	
+	    return new Color(V/255.0f, V/255.0f, V/255.0f, alpha);
+	}	
+	private void RGBToHSV(Color c, out float h, out float s, out float v)
+    {
+		int r = (int)(c.r * 255.0f);
+		int g = (int)(c.g * 255.0f);
+		int b = (int)(c.b * 255.0f);
+		
+        int Max, Min, Diff, Sum;
+        // Of our RGB values, assign the highest value to Max, and the Smallest to Min
+        if (r > g)
+		{
+			Max = r;
+			Min = g;
+		}
+        else
+		{
+			Max = g;
+			Min = r;
+		}
+        if (b > Max) Max = b;
+        else if (b < Min) Min = b;
+        Diff = Max - Min;
+        Sum = Max + Min;
+        v = (float)Max / 255.0f;
+        if (Max == 0) s = 0;
+        else s = (float)Diff / Max; 
+        float q = 0;
+        if (Diff != 0)
+            q = 60.0f / Diff;
+        if (Max == r)
+        {
+            if (g < b) h = (float)(360.0f + q * (g - b)) / 360.0f;
+            else h = (float)(q * (g - b)) / 360.0f;
+        }
+        else if (Max == g) h = (float)(120.0f + q * (b - r)) / 360.0f;
+        else if (Max == b) h = (float)(240.0f + q * (r - g)) / 360.0f;
+        else h = 0.0f;
+        s -= 0.0005f;    //just round down a bit...
+    }
+
 	
 	public void IncreaseSpiritParticles(int spiritChange, int playerNm)
 	{
@@ -185,9 +289,15 @@ public class FluidFieldGenerator : MonoBehaviour
             }
         }
     }
-
+	
 	void Update()
 	{
+	
+
+	}
+
+	void FixedUpdate()
+	{	
 		if(ownerPlayerMouseInfo[0].player == null)
 		{
 			ownerPlayerMouseInfo[0].player = GameObject.FindGameObjectWithTag("PLAYER1");
@@ -221,7 +331,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		{
 			for(int  j = 0; j < VisualizerGridSize; ++j)
 			{
-				fieldVisualizers[i, j].GetComponent<FieldVisualizer>().UpdateLookBasedOnFluid(this, N, VisualizerGridSize, VisualizerGridSize, Color_Fluid_R, Color_Fluid_G, Color_Fluid_B, Color_Ink_R, Color_Ink_G, Color_Ink_B);
+				fieldVisualizers[i, j].GetComponent<FieldVisualizer>().UpdateLookBasedOnFluid(this, N, VisualizerGridSize, VisualizerGridSize, FluidColor, InkColor);
 			}
 		}
 	}	
@@ -385,6 +495,8 @@ public class FluidFieldGenerator : MonoBehaviour
 		if(spiritParticleSystem == null)
 			return;
 		
+		linesToDraw.Clear();
+		
 		int pcount = maxSpiritParticles;//spiritParticleSystem.particleCount;
 		UnityEngine.ParticleSystem.Particle[] particles = new UnityEngine.ParticleSystem.Particle[pcount];
 		//spiritParticleSystem.GetParticles(particles);
@@ -405,7 +517,6 @@ public class FluidFieldGenerator : MonoBehaviour
 			int xCell = (int)(screenPos.x * N);
 			int yCell = (int)(screenPos.y * N);
 			
-			
 			sp.initTime -= dt;
 			if(sp.initTime > 0.0f)
 			{
@@ -417,8 +528,8 @@ public class FluidFieldGenerator : MonoBehaviour
 				
 				if(xCell >= 1 && xCell < N-1 && yCell >= 1 && yCell < N-1)
 				{
-					ppos.x += u[xCell,yCell] * 50.0f;
-					ppos.y += v[xCell,yCell] * 50.0f;
+					ppos.x += u[xCell,yCell] * SpirtParticlesEffectedByGridVelocity;
+					ppos.y += v[xCell,yCell] * SpirtParticlesEffectedByGridVelocity;
 					//this.densityField[xCell,yCell] += 0.01f;
 				}
 				else //bring em back towards the center of the screen
@@ -489,7 +600,7 @@ public class FluidFieldGenerator : MonoBehaviour
 			particles[i].startLifetime = 2.5f;
 			particles[i].lifetime = 5.0f;
 			particles[i].position = ppos;
-			particles[i].size = sp.mass * 30;
+			particles[i].size = sp.mass * 20;
 			particles[i].color = new Color32(248, 168, 255, 255);
 		}
 		
@@ -531,7 +642,6 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
 		
 		GL.PopMatrix();
-		linesToDraw.Clear();
 	}
 	
 	public void UpdateBasedOnBlackHole(BlackHoleScript bhole)
@@ -583,8 +693,8 @@ public class FluidFieldGenerator : MonoBehaviour
 		
 		if(x1 >= 0 && x1 < N && y1 >= 0 && y1 < N)
 		{
-			u0[x1, y1] = dirx*burstStrength;
-			v0[x1, y1] = diry*burstStrength;
+			u0[x1, y1] += dirx*burstStrength;
+			v0[x1, y1] += diry*burstStrength;
 		}
 	}
 	
@@ -1108,18 +1218,10 @@ public class FieldVisualizer : MonoBehaviour
 	
 	private Color32[] vertColors = null;
 	private Vector3[] vertPositions = null;
-	
-	//private ParticleSystem ps = null;
-	//private UnityEngine.ParticleSystem.Particle[] particles = null;
-	
+
 	private int N = 0;
 	private int beginXIdx = 0;
 	private int beginYIdx = 0;
-	
-	public FieldVisualizer()
-	{
-		
-	}
 	
 	public void BuildFieldVisualizerVertices(FluidFieldGenerator fluidField, int gridSize, int n, int bXIdx, int bYIdx, Vector2 gridAspectScale)
 	{		
@@ -1209,7 +1311,7 @@ public class FieldVisualizer : MonoBehaviour
 		mesh.Optimize();
 	}
 		
-	public void UpdateLookBasedOnFluid(FluidFieldGenerator fluidField, float N, float vertDivsX, float vertDivsY, float fluidR, float fluidG, float fluidB, float Color_Ink_R, float Color_Ink_G, float Color_Ink_B)
+	public void UpdateLookBasedOnFluid(FluidFieldGenerator fluidField, float N, float vertDivsX, float vertDivsY, Color fluidColor, Color inkColor)
 	{
         float sw = width-1;
         float sh = height-1;
@@ -1231,19 +1333,20 @@ public class FieldVisualizer : MonoBehaviour
 				
 				float vval = Math.Abs (fluidField.SampleField(fluidField.u, fxcord, fycord));
                 vval += Math.Abs(fluidField.SampleField(fluidField.v, fxcord, fycord));
-				float dval = fluidField.SampleField(fluidField.densityField, fxcord, fycord);
+				vval *= 512.0f;
+				float dval = fluidField.SampleField(fluidField.densityField, fxcord, fycord) * 3;
 				
-				float fr = vval * (fluidR);//+angryColorRating);
-				float fg = vval * (fluidG);//+happyColorRating);
-				float fb = vval * (fluidB);//+sadColorRating);
+				float fr = vval * (fluidColor.r);
+				float fg = vval * (fluidColor.g);
+				float fb = vval * (fluidColor.b);
 				
-				float ir = dval * Color_Ink_R;
-				float ig = dval * Color_Ink_G;
-				float ib = dval * Color_Ink_B;
+				float ir = dval * inkColor.r;
+				float ig = dval * inkColor.g;
+				float ib = dval * inkColor.b;
 				
-				byte vertColorR = (byte)Math.Min(255, (fr+ir)*0.5f);
-				byte vertColorG = (byte)Math.Min(255, (fg+ig)*0.5f);
-				byte vertColorB = (byte)Math.Min(255, (fb+ib)*0.5f);
+				byte vertColorR = (byte)Math.Min(255, (fr+ir));
+				byte vertColorG = (byte)Math.Min(255, (fg+ig));
+				byte vertColorB = (byte)Math.Min(255, (fb+ib));
 				
 				int vidx = colorIdx + x;
 				vertColors[vidx].r = vertColorR;
