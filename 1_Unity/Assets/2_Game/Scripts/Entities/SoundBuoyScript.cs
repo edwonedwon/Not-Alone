@@ -3,7 +3,14 @@ using System.Collections;
 
 public class SoundBuoyScript : MonoBehaviour
 {
-	static ArrayList WorldBuoysList = new ArrayList();
+	class BuoyRiver
+	{
+		public ArrayList buoys = new ArrayList();
+	}
+	
+	public static ArrayList WorldBuoysList = new ArrayList();
+	static ArrayList RiverList = new ArrayList();
+	static float allBuoysConnectedTimer = -1.0f;	//ready-to-go!
 	
 	private FluidFieldGenerator fluidField = null;
 	public tk2dAnimatedSprite sprite = null;
@@ -29,7 +36,7 @@ public class SoundBuoyScript : MonoBehaviour
 	
 	void Start()
 	{
-		int maxBuoys = 4;	//max limit available
+		int maxBuoys = 5;	//max limit available
 		if(WorldBuoysList.Count > 0)
 		{
 			bool tooCloseToOThers = false;
@@ -47,7 +54,7 @@ public class SoundBuoyScript : MonoBehaviour
 				DestroyImmediate(gameObject);
 				return;
 			}
-		}		
+		}
 		
 		WorldBuoysList.Add(this);
 		fluidField = GameObject.FindGameObjectWithTag("fluidField").GetComponent<FluidFieldGenerator>();
@@ -81,6 +88,42 @@ public class SoundBuoyScript : MonoBehaviour
 		//	RotationSpeed = newRotationSpeed;
 	}
 	
+	
+	
+	public static void CheckForRiverCompletion()
+	{
+		int connects = 0;
+		foreach(SoundBuoyScript sbs in WorldBuoysList)
+		{
+			if(sbs.ActivatedWithOther != null && sbs.SoundActivated)
+				++connects;
+		}
+		if(connects == 3 && connects == WorldBuoysList.Count-1)
+		{
+			if(allBuoysConnectedTimer < 0.0f)	//zero
+			{
+				//Play river completed sound/effect here
+				allBuoysConnectedTimer = 0.0f;
+			}
+			
+			allBuoysConnectedTimer += Time.fixedDeltaTime;
+			if(allBuoysConnectedTimer > 5.0f)
+			{								
+				BuoyRiver br = new BuoyRiver();
+				foreach(SoundBuoyScript sbs in WorldBuoysList)
+				{
+					sbs.Submerge();
+					br.buoys.Add(sbs.gameObject);		
+				}
+				WorldBuoysList.Clear();
+				RiverList.Add(br);
+			}
+		}
+		else
+		{
+			allBuoysConnectedTimer = -1.0f;
+		}
+	}
 	
 	int NumCirclesAroundBuoy()
 	{
@@ -127,6 +170,52 @@ public class SoundBuoyScript : MonoBehaviour
 		return radians * (180.0f / 3.14159265359f);
 	}
 	
+	bool CheckForInkLineOverBuoy()
+	{
+		if(player1.DoLinkInk() && player2.DoLinkInk())
+		{
+			Vector2 v1 = p1.transform.position;
+			Vector2 v2 = p2.transform.position;
+			Vector2 closest = Vector2.zero;
+			Vector2 pos = transform.position;
+			GetClosetPointOnLine(ref closest, v1, v2, pos, true);
+			
+			Vector2 difference = pos - closest;
+			if(difference.magnitude < 10.0f)
+				return true;
+		}
+		return false;
+	}
+	
+	public void GetClosetPointOnLine(ref Vector2 closestPointOut, Vector2 A, Vector2 B, Vector2 P, bool segmentClamp)
+    {
+        float apx = P.x - A.x;
+        float apy = P.y - A.y;
+        float abx = B.x - A.x;
+        float aby = B.y - A.y;
+
+        float ab2 = abx * abx + aby * aby;
+        float ap_ab = apx * abx + apy * aby;
+        float t = ap_ab / ab2;
+        if (segmentClamp)
+        {
+            if (t < 0.0f)
+                t = 0.0f;
+            else if (t > 1.0f)
+                t = 1.0f;
+        }
+
+        closestPointOut.x = A.x + abx * t;
+        closestPointOut.y = A.y + aby * t;
+    }
+	
+	private bool submerged = false;
+	public void Submerge()
+	{
+		submerged = true;
+		originalScale = Vector2.zero;		
+	}
+	
 	void FixedUpdate()
 	{
 		if(p1 == null)
@@ -144,7 +233,7 @@ public class SoundBuoyScript : MonoBehaviour
 	
 		if(p1 == null)// || p2 == null)
 			return;
-		
+				
 		float dt = Time.fixedDeltaTime;
 		
 		PlayerScript.FingerState p1finger = player1.MouseFingerDown();
@@ -164,6 +253,23 @@ public class SoundBuoyScript : MonoBehaviour
 		float increaseRate = 3.0f;
 		float decreaseRate = 5.0f;
 		Vector2 vBurstDirection = v1-vMe;
+		int cnt = WorldBuoysList.Count;
+		
+		if(ActivatedWithOther == null)
+		{
+			int myIdx = WorldBuoysList.IndexOf(this);				
+			if(myIdx < cnt-1)
+			{
+				ActivatedWithOther = (SoundBuoyScript)WorldBuoysList[myIdx+1];
+			}
+			//else if(myIdx > 0)
+			//	ActivatedWithOther = (SoundBuoyScript)WorldBuoysList[0];
+		}	
+				
+		if(!SoundActivated && CheckForInkLineOverBuoy())
+			SoundActivated = true;
+		if(!SoundActivated && circles > 5)
+			SoundActivated = true;
 		
 		if(SoundActivated)
 		{
@@ -172,80 +278,53 @@ public class SoundBuoyScript : MonoBehaviour
 				Vector2 vOther = ActivatedWithOther.transform.position;
 				vBurstDirection = vOther-vMe;
 				float power = UnityEngine.Random.Range(0.0f, 0.065f);
+				if(submerged)
+					power *= 0.2f;
 				fluidField.DropVelocityInDirection(vMe.x, vMe.y, vBurstDirection.x, vBurstDirection.y, power);
 				sprite.color = Color.Lerp(sprite.color, Color.white, dt*increaseRate);
 			}
 		}		
 		
-		vBurstDirection.Normalize();
-		for(int i = 0; i < newcircles; ++i)
+		if(!submerged)
 		{
-			Network.Instantiate(flareTemplate, transform.position, Quaternion.identity, 0);
-			fluidField.DropVelocityInDirection(vMe.x, vMe.y, vBurstDirection.x, vBurstDirection.y, riverPower);
-		}		
-		
-		if(BurstActivated || SoundActivated)
-		{
-			++activatedFrames;
-			if(BurstActivated)
-				sprite.color = Color.Lerp(sprite.color, Color.blue, dt*increaseRate);
-			DeactiveTimer -= Time.fixedDeltaTime;
-			if(DeactiveTimer < 0.0f)
+			vBurstDirection.Normalize();
+			for(int i = 0; i < newcircles; ++i)
 			{
-				activatedFrames = -1;
-				BurstActivated = false;
+				Network.Instantiate(flareTemplate, transform.position, Quaternion.identity, 0);
+				fluidField.DropVelocityInDirection(vMe.x, vMe.y, vBurstDirection.x, vBurstDirection.y, riverPower);
 			}
 		}
-		else
-		{
-			sprite.color = Color.Lerp (sprite.color, Color.yellow, dt*decreaseRate);
-		}
 		
-	
-		if(p1finger == PlayerScript.FingerState.None)// && p2finger == PlayerScript.FingerState.None)
-		{
-			numCirclesCompleted = 0;
-			p1MovementPoints.Clear();
-		}
-		
-		
-		int p1MovementsCount = p1MovementPoints.Count;
-		p1MovementPoints.Add(v1);
-		if(p1MovementsCount > 249)
-			p1MovementPoints.RemoveAt(0);	//then remove the last one!		
-		
-		//Connect to the nextly created buoy
-		int cnt = WorldBuoysList.Count;		
-		if(cnt > 1 && !SoundActivated && circles > 5)
-		{
-			if(ActivatedWithOther == null)
+			if(BurstActivated || SoundActivated)
 			{
-				int myIdx = WorldBuoysList.IndexOf(this);				
-				if(myIdx < cnt-1)
+				++activatedFrames;
+				if(BurstActivated)
+					sprite.color = Color.Lerp(sprite.color, Color.blue, dt*increaseRate);
+				DeactiveTimer -= Time.fixedDeltaTime;
+				if(DeactiveTimer < 0.0f)
 				{
-					ActivatedWithOther = (SoundBuoyScript)WorldBuoysList[myIdx+1];
-					SoundActivated = true;
+					activatedFrames = -1;
+					BurstActivated = false;
 				}
-				else if(myIdx > 0)
-					ActivatedWithOther = (SoundBuoyScript)WorldBuoysList[0];
+			}
+			else
+			{
+				sprite.color = Color.Lerp (sprite.color, Color.yellow, dt*decreaseRate);
+			}
+		
+		if(!submerged)
+		{
+			if(p1finger == PlayerScript.FingerState.None)// && p2finger == PlayerScript.FingerState.None)
+			{
+				numCirclesCompleted = 0;
+				p1MovementPoints.Clear();
 			}		
+			
+			int p1MovementsCount = p1MovementPoints.Count;
+			p1MovementPoints.Add(v1);
+			if(p1MovementsCount > 249)
+				p1MovementPoints.RemoveAt(0);	//then remove the last one!				
 		}
-		/*
-		else
-		{
-			if(SoundActivated)
-			{
-				if(ActivatedWithOther != null)
-				{
-					ActivatedWithOther.ActivatedWithOther = null;
-					ActivatedWithOther.SoundActivated = false;
-				}
-				ActivatedWithOther = null;
-			}
-			SoundActivated = false;
-		}
-		*/
-		
 		
 		if(!BurstActivated && Mathf.Abs(newcircles) > 0)// && v1Diff.magnitude < minDist)
 		{
@@ -253,6 +332,7 @@ public class SoundBuoyScript : MonoBehaviour
 			activatedFrames = (int)UnityEngine.Random.Range(0, 3);
 			DeactiveTimer = 1.5f;
 		}
+		
 	}
 
 	

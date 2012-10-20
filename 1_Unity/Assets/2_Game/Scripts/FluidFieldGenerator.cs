@@ -246,8 +246,25 @@ public class FluidFieldGenerator : MonoBehaviour
 	[RPC]
 	void ChangeAmountOfSpirtParticles(int spiritChange, int playerNm)
 	{
-		maxSpiritParticles += 1;
-		spiritParticles[maxSpiritParticles-1].position = ownerPlayerMouseInfo[playerNm].player.transform.position;
+		if(spiritChange == -1)
+		{
+			maxSpiritParticles = 0;
+		}
+		else
+		{
+			maxSpiritParticles += 1;
+			Vector3 playerpos = ownerPlayerMouseInfo[playerNm].player.transform.position;
+			playerpos.x += UnityEngine.Random.Range (-25,25);
+			playerpos.z += UnityEngine.Random.Range (-25,25);
+			spiritParticles[maxSpiritParticles-1].position = playerpos;
+		}
+	}
+	
+	public void ExplosionFromTheCentre()
+	{
+		DoVelocityBurst(0.5f, 0.5f, 30, -30.0f);
+		DoVelocityBurst(0.5f, 0.5f, 20, -5.0f);
+		//DoInkBurst(0.5f, 0.5f, 30, 1000);
 	}
 	
 	private void InitVisualizerField()
@@ -608,9 +625,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		spiritParticlesAllConnected = numConnectedParticles == maxSpiritParticles;
 		spiritParticleSystem.SetParticles(particles, maxSpiritParticles);
 	}
-	
-	
-	
+		
 	private struct LineToDraw
 	{
 		public Vector2 pos1;
@@ -714,8 +729,8 @@ public class FluidFieldGenerator : MonoBehaviour
 				
 				if(i >= 0 && i < N && j >= 0 && j < N)
 				{
-					u0[i, j] = xDelta*burstStrength;
-					v0[i, j] = yDelta*burstStrength;
+					u[i, j] += xDelta*burstStrength;
+					v[i, j] += yDelta*burstStrength;
 				}
 			}
 		}		
@@ -1334,11 +1349,11 @@ public class FieldVisualizer : MonoBehaviour
 				float vval = Math.Abs (fluidField.SampleField(fluidField.u, fxcord, fycord));
                 vval += Math.Abs(fluidField.SampleField(fluidField.v, fxcord, fycord));
 				vval *= 512.0f;
-				float dval = fluidField.SampleField(fluidField.densityField, fxcord, fycord) * 3;
+				float dval = fluidField.SampleField(fluidField.densityField, fxcord, fycord) * 5;
 				
-				float fr = vval * (fluidColor.r);
-				float fg = vval * (fluidColor.g);
-				float fb = vval * (fluidColor.b);
+				float fr = vval * fluidColor.r;
+				float fg = vval * fluidColor.g;
+				float fb = vval * fluidColor.b;
 				
 				float ir = dval * inkColor.r;
 				float ig = dval * inkColor.g;

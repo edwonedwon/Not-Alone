@@ -323,11 +323,6 @@ public class PlayerScript : MonoBehaviour
 
 	}
 	
-	
-	
-	
-	
-	
 	void FixedUpdate()
 	{
 		if(previousFingerState != currentFingerState)

@@ -8,6 +8,7 @@ public class ContinuousLevel : MonoBehaviour
 	private GameObject p1 = null;
 	private GameObject p2 = null;
 	
+	public FluidFieldGenerator fluidField = null;
 	
 	//game-style: clear-screen-togetherness	
 	private float timeTogetherNotMoving = 0.0f;
@@ -62,6 +63,20 @@ public class ContinuousLevel : MonoBehaviour
 	
 	
 	
+	void ClearAllGameEntitiesOut()
+	{
+		GameObject[] soundBuoys = GameObject.FindGameObjectsWithTag("buoy");
+		fluidField.IncreaseSpiritParticles(-1, 0);
+		
+		foreach(GameObject go in soundBuoys)
+		{
+			GameObject.Destroy(go);	
+		}
+		
+		
+		fluidField.ExplosionFromTheCentre();		
+	}
+	
 	void FixedUpdate ()
 	{
 		if(p1 == null)
@@ -77,6 +92,18 @@ public class ContinuousLevel : MonoBehaviour
 				player2 = p2.GetComponent<PlayerScript>();
 		}
 	
+		
+		SoundBuoyScript.CheckForRiverCompletion();
+		
+		
+		if(p1 != null)
+		{
+			if(SoundBuoyScript.WorldBuoysList.Count == 3)
+				ClearAllGameEntitiesOut();
+			return;
+		}
+		
+		
 		if(p1 == null || p2 == null)
 			return;
 		
@@ -96,7 +123,10 @@ public class ContinuousLevel : MonoBehaviour
 		{
 			timeTogetherNotMoving += Time.deltaTime;			
 			if(timeTogetherNotMoving > 5.0f)
-				GameLogicController.instance.MoveToNextLevel();		
+			{
+				ClearAllGameEntitiesOut();
+				//GameLogicController.instance.MoveToNextLevel();		//not anymore!
+			}
 		}
 		else
 		{
@@ -112,6 +142,10 @@ public class ContinuousLevel : MonoBehaviour
 		{
 			player1.SetDoLinkInk(false);
 			player2.SetDoLinkInk(false);
-		}	
+		}
+		
+		
+		
+		
 	}
 }
