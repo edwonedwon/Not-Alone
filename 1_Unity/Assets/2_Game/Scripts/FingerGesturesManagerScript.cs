@@ -28,7 +28,10 @@ public class FingerGesturesManagerScript : MonoBehaviour {
 		FingerGestures.OnFingerMove += OnFingerMove;
 		
 		FingerGestures.OnPinchEnd += OnPinchEnd;
+		FingerGestures.OnPinchBegin += OnPinchBegin;
 	}
+
+	
 	
 	void OnDisable ()
 	{
@@ -40,6 +43,14 @@ public class FingerGesturesManagerScript : MonoBehaviour {
 	#endregion
 	
 	#region Finger Gestures
+	
+	void OnPinchBegin(Vector2 fingerPos1, Vector2 fingerPos2)
+	{
+		if(Network.isServer && player1 != null)
+			player1.GetComponent<PlayerScript>().OnPinchBegin(fingerPos1,  fingerPos2);
+		else if(Network.isClient && player2 != null)
+			player2.GetComponent<PlayerScript>().OnPinchBegin(fingerPos1, fingerPos2);
+	}
 	
 	void OnPinchEnd (Vector2 fingerPos1, Vector2 fingerPos2)
 	{

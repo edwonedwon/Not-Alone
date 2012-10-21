@@ -9,7 +9,7 @@ public class SoundBuoyScript : MonoBehaviour
 	}
 	
 	public static ArrayList WorldBuoysList = new ArrayList();
-	static ArrayList RiverList = new ArrayList();
+	public static ArrayList RiverList = new ArrayList();
 	static float allBuoysConnectedTimer = -1.0f;	//ready-to-go!
 	
 	private FluidFieldGenerator fluidField = null;
@@ -90,7 +90,7 @@ public class SoundBuoyScript : MonoBehaviour
 	
 	
 	
-	public static void CheckForRiverCompletion()
+	public static bool CheckForRiverCompletion()
 	{
 		int connects = 0;
 		foreach(SoundBuoyScript sbs in WorldBuoysList)
@@ -98,7 +98,7 @@ public class SoundBuoyScript : MonoBehaviour
 			if(sbs.ActivatedWithOther != null && sbs.SoundActivated)
 				++connects;
 		}
-		if(connects == 3 && connects == WorldBuoysList.Count-1)
+		if(connects > 3 && connects == WorldBuoysList.Count-1)
 		{
 			if(allBuoysConnectedTimer < 0.0f)	//zero
 			{
@@ -107,7 +107,7 @@ public class SoundBuoyScript : MonoBehaviour
 			}
 			
 			allBuoysConnectedTimer += Time.fixedDeltaTime;
-			if(allBuoysConnectedTimer > 5.0f)
+			if(allBuoysConnectedTimer > 5.0f && WorldBuoysList.Count > 0)
 			{								
 				BuoyRiver br = new BuoyRiver();
 				foreach(SoundBuoyScript sbs in WorldBuoysList)
@@ -117,12 +117,14 @@ public class SoundBuoyScript : MonoBehaviour
 				}
 				WorldBuoysList.Clear();
 				RiverList.Add(br);
+				return true;
 			}
 		}
 		else
 		{
 			allBuoysConnectedTimer = -1.0f;
 		}
+		return false;
 	}
 	
 	int NumCirclesAroundBuoy()

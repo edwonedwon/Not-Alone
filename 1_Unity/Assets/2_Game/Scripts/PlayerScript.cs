@@ -26,6 +26,7 @@ public class PlayerScript : MonoBehaviour
 	
 	private FluidFieldGenerator fluidField = null;
 	public GameObject PinchCreateObjectPrefab = null;
+	public GameObject RippleObjectPrefab = null;
 	
 	public enum PlayerFeeling
 	{
@@ -309,7 +310,7 @@ public class PlayerScript : MonoBehaviour
 			touchAnim.scale = new Vector3(200, 200, 200);
 		}
 	
-		touchAnim.animationCompleteDelegate = AnimationComplete;
+		touchAnim.animationCompleteDelegate += AnimationComplete;
 		DontDestroyOnLoad(this);
 	}
 	
@@ -474,8 +475,7 @@ public class PlayerScript : MonoBehaviour
 		mouseIsMovingWhileDown = true;
 		
 		currentMovements.NumTouchDowns += 1;
-		currentMovements.TimeSinceLastTouchDown = 0.0f;
-		
+		currentMovements.TimeSinceLastTouchDown = 0.0f;		
 
 		//game-mode: tapping in same spot calling out plankton
 		if(currentFingerState != (FingerState)finger)
@@ -485,6 +485,8 @@ public class PlayerScript : MonoBehaviour
 			currentFingerState = (FingerState)finger;
 			if(currentFingerState == FingerState.Single)
 			{
+				
+				
 				//current semi-hack to place pinched-prefab object. must also be handled in the OnPinchEnd()
 				if(PinchCreateObjectPrefab != null)
 				{
@@ -614,12 +616,23 @@ public class PlayerScript : MonoBehaviour
 		}
 	}
 	
+	private float pinchSizeAtBegin = 0;
+	public void OnPinchBegin (Vector2 fingerPos1, Vector2 fingerPos2)		
+	{
+		if(RippleObjectPrefab != null)
+		{
+			pinchSizeAtBegin = (fingerPos2-fingerPos1).magnitude;
+			GameObject.Instantiate(RippleObjectPrefab, fingerPos1, Quaternion.identity);
+			GameObject.Instantiate(RippleObjectPrefab, fingerPos2, Quaternion.identity);
+		}
+	}
+	
 	public void OnPinchEnd (Vector2 fingerPos1, Vector2 fingerPos2)		
 	{
 		if(PinchCreateObjectPrefab != null)
 		{
 			Vector2 diff = fingerPos2-fingerPos1;
-			if(diff.magnitude < 10.0f)
+			if(diff.magnitude < pinchSizeAtBegin)
 				Network.Instantiate(PinchCreateObjectPrefab, fingerPos1 + (diff*0.5f), Quaternion.identity, 0);
 		}
 	}

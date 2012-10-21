@@ -13,13 +13,13 @@ public class ContinuousLevel : MonoBehaviour
 	//game-style: clear-screen-togetherness	
 	private float timeTogetherNotMoving = 0.0f;
 	
-	
 	//game-style: tapping on screen calling out plankton
 	
 	
 	void Start ()
 	{
-	
+		Application.targetFrameRate = 30;
+		Time.fixedDeltaTime = 1.0f / 30.0f;	
 	}
 	
 	void OnEnable()
@@ -28,10 +28,9 @@ public class ContinuousLevel : MonoBehaviour
 	}
 	
 	
-	
 	public void DoSomethingHere(float additionalRot, int playerNm)
 	{
-		networkView.RPC ("SetRotationSpeed", RPCMode.All, additionalRot, playerNm);
+		networkView.RPC ("FunctionToDoSomething", RPCMode.All, additionalRot, playerNm);
 	}
 	
 	[RPC]
@@ -65,15 +64,24 @@ public class ContinuousLevel : MonoBehaviour
 	
 	void ClearAllGameEntitiesOut()
 	{
-		GameObject[] soundBuoys = GameObject.FindGameObjectsWithTag("buoy");
+		//Destroy buoy objects
+		GameObject[] soundBuoys = GameObject.FindGameObjectsWithTag("buoy");		
+		foreach(GameObject go in soundBuoys)
+			GameObject.Destroy(go);		
+		
+		//Remove all spirit particles
 		fluidField.IncreaseSpiritParticles(-1, 0);
 		
-		foreach(GameObject go in soundBuoys)
-		{
-			GameObject.Destroy(go);	
-		}
+		//clear out the black holes!
+		foreach(BlackHoleScript bhs in BlackHoleScript.WorldBlackHoles)
+			GameObject.Destroy(bhs.gameObject);
 		
+		//clear static lists
+		SoundBuoyScript.RiverList.Clear();
+		SoundBuoyScript.WorldBuoysList.Clear();
+		BlackHoleScript.WorldBlackHoles.Clear();
 		
+		//drop an explosion in the fluid field!
 		fluidField.ExplosionFromTheCentre();		
 	}
 	
@@ -93,14 +101,14 @@ public class ContinuousLevel : MonoBehaviour
 		}
 	
 		
-		SoundBuoyScript.CheckForRiverCompletion();
+		bool riverComplete = SoundBuoyScript.CheckForRiverCompletion();
 		
 		
 		if(p1 != null)
 		{
-			if(SoundBuoyScript.WorldBuoysList.Count == 3)
-				ClearAllGameEntitiesOut();
-			return;
+			//if(SoundBuoyScript.WorldBuoysList.Count == 0 && riverComplete)
+			//	ClearAllGameEntitiesOut();
+			//return;
 		}
 		
 		
@@ -115,13 +123,13 @@ public class ContinuousLevel : MonoBehaviour
 		
 		//Find out if they are touching...
 		Vector3 v1 = p1.transform.position;
-		Vector3 v2 = p2.transform.position;		
+		Vector3 v2 = p2.transform.position;
 		
 		float difference = (v1-v2).magnitude;		
 		
 		if(difference < 50.0f)
 		{
-			timeTogetherNotMoving += Time.deltaTime;			
+			timeTogetherNotMoving += Time.deltaTime;
 			if(timeTogetherNotMoving > 5.0f)
 			{
 				ClearAllGameEntitiesOut();

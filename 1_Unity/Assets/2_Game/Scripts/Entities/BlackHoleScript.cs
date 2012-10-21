@@ -3,8 +3,9 @@ using System.Collections;
 
 public class BlackHoleScript : MonoBehaviour
 {	
-	private FluidFieldGenerator fluidField = null;
+	public static ArrayList WorldBlackHoles = new ArrayList();
 	
+	private FluidFieldGenerator fluidField = null;
 	public int radius = 30;
 	public float velocityPower = 190.0f;
 	public float holePower = 100.0f;
@@ -21,7 +22,7 @@ public class BlackHoleScript : MonoBehaviour
 	
 	void Start()
 	{		
-		
+		WorldBlackHoles.Add(this);
 	}	
 	
 	void OnEnable()
@@ -31,7 +32,7 @@ public class BlackHoleScript : MonoBehaviour
 	
 	void OnDisable()
 	{
-
+		WorldBlackHoles.Remove(this);
 	}
 	
 	public void AddToRotationSpeed(float additionalRot, int playerNm)
