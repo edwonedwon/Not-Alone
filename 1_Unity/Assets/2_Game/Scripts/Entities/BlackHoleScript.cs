@@ -49,7 +49,7 @@ public class BlackHoleScript : MonoBehaviour
 		else if(playerNm == 2)
 			HitByPlayer2 = true;
 		
-		if(HitByPlayer1 && HitByPlayer2)
+		//if(HitByPlayer1 && HitByPlayer2)
 			RotationSpeed = newRotationSpeed;
 	}
 	
@@ -77,8 +77,7 @@ public class BlackHoleScript : MonoBehaviour
 				this.transform.Rotate(Vector3.forward, Time.deltaTime * Mathf.Max(50, RotationSpeed));
 				if(RotationSpeed < 0.0f)
 					shrinkAndDissapear = true;
-			}
-			
+			}			
 			
 			spewRotation = RotationSpeed * Time.deltaTime * 5.0f;
 			spewingDirection = Quaternion.AngleAxis(spewRotation, Vector3.forward) * spewingDirection;

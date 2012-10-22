@@ -35,6 +35,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	{
 		public Vector2 velocity = Vector2.zero;
 		public Vector2 position = Vector2.zero;
+		public Vector2 targetOffset = Vector2.zero;
 		public float mass = 1.0f;
 		public float initTime = 1.0f;
 		
@@ -111,7 +112,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		InitChunkFields();
 		
 		spiritParticles = new SpiritParticle[150];
-		for(int i = 0; i < 150; ++i)	
+		for(int i = 0; i < 150; ++i)
 		{
 			spiritParticles[i] = new SpiritParticle(UnityEngine.Random.Range(3.0f, 30.0f));
 		}
@@ -129,6 +130,45 @@ public class FluidFieldGenerator : MonoBehaviour
 	{
 		networkView.RPC ("RotateColors", RPCMode.All);
 	}
+	
+	void OnSerializeNetworkView (BitStream stream, NetworkMessageInfo info)
+	{
+		
+		
+		
+		
+		if(stream.isWriting)
+		{
+			for(int i = 0; i < maxSpiritParticles; ++i)
+			{
+				stream.Serialize(ref spiritParticles[i].position.x);
+				stream.Serialize(ref spiritParticles[i].position.y);
+			}
+			//stream.Serialize(ref pos);
+			//stream.Serialize(ref mouseState);
+		}
+		else if(stream.isReading)
+		{
+			for(int i = 0; i < maxSpiritParticles; ++i)
+			{
+				float targetposx = 0;
+				float targetposy = 0;
+				stream.Serialize(ref targetposx);
+				stream.Serialize(ref targetposy);
+				
+				spiritParticles[i].targetOffset.x = targetposx - spiritParticles[i].position.x;
+				spiritParticles[i].targetOffset.y = targetposy - spiritParticles[i].position.y;
+			}
+			
+			//stream.Serialize(ref pos);
+			//stream.Serialize(ref mouseState);			
+		}
+		
+		//currentFingerState = (FingerState)mouseState;
+		//transform.position = pos;
+		
+	}
+	
 	
 	[RPC]	
 	void RotateColors()
@@ -240,11 +280,13 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public void IncreaseSpiritParticles(int spiritChange, int playerNm)
 	{
-		networkView.RPC ("ChangeAmountOfSpirtParticles", RPCMode.All, spiritChange, playerNm);
+		float rx = UnityEngine.Random.Range (-25,25);
+		float ry = UnityEngine.Random.Range (-25,25);
+		networkView.RPC ("ChangeAmountOfSpirtParticles", RPCMode.All, spiritChange, playerNm, rx, ry);
 	}
 	
 	[RPC]
-	void ChangeAmountOfSpirtParticles(int spiritChange, int playerNm)
+	void ChangeAmountOfSpirtParticles(int spiritChange, int playerNm, float rx, float ry)
 	{
 		if(spiritChange == -1)
 		{
@@ -254,8 +296,8 @@ public class FluidFieldGenerator : MonoBehaviour
 		{
 			maxSpiritParticles += 1;
 			Vector3 playerpos = ownerPlayerMouseInfo[playerNm].player.transform.position;
-			playerpos.x += UnityEngine.Random.Range (-25,25);
-			playerpos.z += UnityEngine.Random.Range (-25,25);
+			playerpos.x += rx;
+			playerpos.z += ry;
 			spiritParticles[maxSpiritParticles-1].position = playerpos;
 		}
 	}
@@ -612,6 +654,8 @@ public class FluidFieldGenerator : MonoBehaviour
 			
 			ppos.x += sp.velocity.x * dt;
 			ppos.y += sp.velocity.y * dt;
+			ppos.x += sp.targetOffset.x * dt;
+			ppos.y += sp.targetOffset.y * dt;
 			
 			sp.position = ppos;
 			particles[i].startLifetime = 2.5f;

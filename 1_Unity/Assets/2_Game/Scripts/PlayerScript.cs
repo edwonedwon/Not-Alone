@@ -27,6 +27,7 @@ public class PlayerScript : MonoBehaviour
 	private FluidFieldGenerator fluidField = null;
 	public GameObject PinchCreateObjectPrefab = null;
 	public GameObject RippleObjectPrefab = null;
+	public GameObject VortexObjectPrefab = null;
 	
 	public enum PlayerFeeling
 	{
@@ -43,11 +44,13 @@ public class PlayerScript : MonoBehaviour
 		public struct Quad
 		{
 			public bool touched;
+			public float mouseLoopsAround;
 			public int timer;
 			public Quad(bool t, int ti)
 			{
 				touched = t;
-				timer = ti;				
+				timer = ti;
+				mouseLoopsAround = 0;
 			}
 		};
 		public Quad[,] QuadrantsTouched;
@@ -67,6 +70,8 @@ public class PlayerScript : MonoBehaviour
 		public float currentHappiness = 0.0f;
 		public float currentSadness = 0.0f;
 		public float currentAngriness = 0.0f;
+		
+		private float calculateLoopsTimer = 1.0f;
 		
 		public PlayerMovements()
 		{
@@ -108,6 +113,7 @@ public class PlayerScript : MonoBehaviour
 					
 					QuadrantsTouched[i,j].touched = false;
 					QuadrantsTouched[i,j].timer = 0;
+					QuadrantsTouched[i,j].mouseLoopsAround = 0;
 				}
 			}
 			
@@ -122,8 +128,7 @@ public class PlayerScript : MonoBehaviour
 			
 			return false;
 		}
-		
-		
+			
 		public void CalculateMovementBounds(Vector2 mousePos)
 		{
 			if(mousePos.x < minBounds.x)
@@ -138,7 +143,7 @@ public class PlayerScript : MonoBehaviour
 		}
 		
 		
-		public void CalculateCurrentQuadrant(Vector2 mousePos)
+		public void CalculateCurrentQuadrant(PlayerScript playa, Vector2 mousePos, ArrayList mousepoints)
 		{
 			float xp = mousePos.x / Camera.main.pixelWidth;
 			float yp = mousePos.y / Camera.main.pixelHeight;
@@ -160,10 +165,67 @@ public class PlayerScript : MonoBehaviour
 			
 			QuadrantsTouched[xQuadrant, yQuadrant].touched = true;
 			QuadrantsTouched[xQuadrant, yQuadrant].timer = 100;
+			
+			calculateLoopsTimer -= Time.fixedDeltaTime;
+			if(calculateLoopsTimer < 0.0f)
+			{
+				calculateLoopsTimer = 1.0f;
+				Camera camcam = Camera.main;
+				for(int i = 0; i < QuadrantDensity; ++i)
+				{
+					float deltai = (float)i / (float)(QuadrantDensity-1);
+					for(int j = 0; j < QuadrantDensity; ++j)
+					{
+						float deltaj = (float)j / (float)(QuadrantDensity-1);
+						float compundedMangle = 0.0f;
+	            		float totalmangle = 0.0f;
+						
+						float screenx = Camera.main.pixelWidth * deltai;
+						float screeny = Camera.main.pixelHeight * deltaj;
+	
+			            for (int mp = 1; mp < mousepoints.Count; ++mp)
+			            {
+			                Vector2 old = (Vector2)mousepoints[mp - 1];
+			                Vector2 cur = (Vector2)mousepoints[mp];
+			
+			                float yDistCur = cur.y - screeny;
+			                float xDistCur = cur.x - screenx;
+			
+			                float yDistOld = old.y - screeny;
+			                float xDistOld = old.x - screenx;
+			
+			                float maxRadius = 55;
+			                float minRadius = 5;
+			
+			                float curLen = (float)System.Math.Sqrt((xDistCur * xDistCur) + (yDistCur * yDistCur));
+			                //float oldLen = (float)System.Math.Sqrt((xDistOld * xDistOld) + (yDistOld * yDistOld));
+			
+			                if (curLen > minRadius && curLen < maxRadius)
+			                {
+			                    float degsCur = ToDegrees(Mathf.Atan2(yDistCur, xDistCur));
+			                    float degresOld = ToDegrees(Mathf.Atan2(yDistOld, xDistOld));
+			
+			                    if (System.Math.Sign(degresOld) == System.Math.Sign(degsCur))
+			                    {
+			                        compundedMangle += System.Math.Abs(System.Math.Abs(degsCur) - System.Math.Abs(degresOld));
+			                        totalmangle += degsCur - degresOld;
+			                    }
+			                }
+			            }
+						
+						QuadrantsTouched[i, j].mouseLoopsAround = Mathf.Max(0, totalmangle / 360.0f);
+						
+						
+						if(QuadrantsTouched[i, j].mouseLoopsAround > 3.0f)
+						{
+							playa.SpawnVortex(camcam.ScreenToWorldPoint(new Vector2(screenx, screeny)));
+							QuadrantsTouched[i, j].mouseLoopsAround = 0;
+							return;
+						}
+					}
+				}
+			}
 		}
-		
-		
-				
 				
 		public PlayerFeeling CalculateCurrentFeeling(PlayerScript player, PlayerFeeling curFeeling)
 		{
@@ -252,8 +314,6 @@ public class PlayerScript : MonoBehaviour
 	
 	private int numberOfTapsInSameSpot = 0;
 	private Vector2 lastMouseDownPos = Vector2.zero;
-	
-	
 
 	public tk2dAnimatedSprite touchAnim;
 	
@@ -342,8 +402,8 @@ public class PlayerScript : MonoBehaviour
 		float xdiffOld = centerx - transform.position.x;
 		float ydiffOld = centery - transform.position.y;
 		
-		float angleOld = ToDegrees((float)System.Math.Atan2(ydiffOld, xdiffOld));
-		float angleCur = ToDegrees((float)System.Math.Atan2(ydiffCur, xdiffCur));
+		float angleOld = ToDegrees(Mathf.Atan2(ydiffOld, xdiffOld));
+		float angleCur = ToDegrees(Mathf.Atan2(ydiffCur, xdiffCur));
 		
 		touchAnim.transform.Rotate(touchAnim.transform.forward, (angleOld-angleCur));
 		prevTouchPos.x = transform.position.x;
@@ -352,8 +412,31 @@ public class PlayerScript : MonoBehaviour
 		previousFingerState = currentFingerState;
 		
 		UpdatePlayerMovementsAndFeelings();
+		UpdatePlayerGestures();
 	}
 	
+	
+	public void SpawnVortex(Vector3 worldpos)
+	{
+		if(BlackHoleScript.WorldBlackHoles.Count > 4)
+			return;
+		
+		Vector2 spawnPos = new Vector2(worldpos.x, worldpos.y);
+		
+		foreach(BlackHoleScript bh in BlackHoleScript.WorldBlackHoles)
+		{
+			Vector2 bhpos = bh.transform.position;
+			if((spawnPos-bhpos).magnitude < 100)
+				return;
+		}
+		
+		Network.Instantiate(VortexObjectPrefab, spawnPos, Quaternion.identity, 0);
+	}
+	
+	public void UpdatePlayerGestures()
+	{
+								
+	}
 	
 	public void UpdatePlayerMovementsAndFeelings()
 	{
@@ -385,7 +468,6 @@ public class PlayerScript : MonoBehaviour
 			touchAnim.Play(touchAnimations[1]);	break;
 		}
 	}
-		
 	
 	public void UpdateAgainstBlackHole(BlackHoleScript blackHole)
 	{
@@ -429,12 +511,12 @@ public class PlayerScript : MonoBehaviour
             }
 			
 			int playerNm = isPlayer1 ? 1 : 2;			
-			blackHole.AddToRotationSpeed((totalmangle-previousMangle) * 0.4f, playerNm);
+			blackHole.AddToRotationSpeed((totalmangle-previousMangle) * 0.2f, playerNm);
 			previousMangle = totalmangle;
 		}		
 	}
 	
-	public float ToDegrees(float radians)
+	public static float ToDegrees(float radians)
 	{
 		return radians * (180.0f / 3.14159265359f);
 	}
@@ -468,7 +550,7 @@ public class PlayerScript : MonoBehaviour
 		
 		currentMousePoints.Add(pos);
 		currentMovements.CalculateMovementBounds(pos);
-		currentMovements.CalculateCurrentQuadrant(pos);
+		currentMovements.CalculateCurrentQuadrant(this, pos, currentMousePoints);
 		
 		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(pos.x, pos.y, zOffset));
 		
@@ -490,7 +572,7 @@ public class PlayerScript : MonoBehaviour
 				//current semi-hack to place pinched-prefab object. must also be handled in the OnPinchEnd()
 				if(PinchCreateObjectPrefab != null)
 				{
-					Network.Instantiate(PinchCreateObjectPrefab, v2D, Quaternion.identity, 0);
+					//Network.Instantiate(PinchCreateObjectPrefab, v2D, Quaternion.identity, 0);
 				}				
 				
 				Vector2 diff = lastMouseDownPos - pos;
@@ -500,7 +582,7 @@ public class PlayerScript : MonoBehaviour
 					if(++numberOfTapsInSameSpot > 3)
 					{
 						if(UnityEngine.Random.Range (0, 100) > 50.0f)						
-							fluidField.IncreaseSpiritParticles(1, 0);						
+							fluidField.IncreaseSpiritParticles(1, isPlayer1 ? 0 : 1);						
 					}
 				}
 				else
@@ -522,7 +604,7 @@ public class PlayerScript : MonoBehaviour
 	{		
 		currentMovements.TimeSinceLastMouseMove = 0.0f;
 		currentMovements.CalculateMovementBounds(pos);
-		currentMovements.CalculateCurrentQuadrant(pos);
+		currentMovements.CalculateCurrentQuadrant(this, pos, currentMousePoints);
 		
 		int currentMousePointCount = currentMousePoints.Count;
 		if(currentMousePointCount > 1)
@@ -564,6 +646,8 @@ public class PlayerScript : MonoBehaviour
 		*/
 		
 		
+		if(currentMousePoints.Count > 200)
+			currentMousePoints.RemoveAt(0);
 		currentMousePoints.Add(pos);
 		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(pos.x, pos.y, zOffset));
 		currentFingerState = (FingerState)finger;
