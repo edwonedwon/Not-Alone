@@ -7,10 +7,10 @@ public class BlackHoleScript : MonoBehaviour
 	
 	private FluidFieldGenerator fluidField = null;
 	public int radius = 30;
-	public float velocityPower = 500.0f;
+	public float velocityPower = 190.0f;
 	public float holePower = 100.0f;
 	public float inkSpit = 0.0f;
-	public float RotationSpeed = 1000;
+	public float RotationSpeed = 100;
 	
 	private bool shrinkAndDissapear = false;
 	
@@ -49,7 +49,7 @@ public class BlackHoleScript : MonoBehaviour
 		else if(playerNm == 2)
 			HitByPlayer2 = true;
 		
-		//if(HitByPlayer1 && HitByPlayer2)
+		if(HitByPlayer1 && HitByPlayer2)
 			RotationSpeed = newRotationSpeed;
 	}
 	
@@ -57,7 +57,7 @@ public class BlackHoleScript : MonoBehaviour
 	{
 		if(fluidField == null)
 		{
-			fluidField = GameObject.FindGameObjectWithTag("fluidField").GetComponent<FluidFieldGenerator>();
+			fluidField = GameObject.Find("fluid field").GetComponent<FluidFieldGenerator>();
 		}
 		else
 		{
@@ -77,9 +77,10 @@ public class BlackHoleScript : MonoBehaviour
 				this.transform.Rotate(Vector3.forward, Time.deltaTime * Mathf.Max(50, RotationSpeed));
 				if(RotationSpeed < 0.0f)
 					shrinkAndDissapear = true;
-			}			
+			}
 			
-			spewRotation = RotationSpeed * 0.3f * Time.fixedDeltaTime;
+			
+			spewRotation = RotationSpeed * Time.deltaTime * 5.0f;
 			spewingDirection = Quaternion.AngleAxis(spewRotation, Vector3.forward) * spewingDirection;
 		}
 	}

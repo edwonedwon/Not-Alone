@@ -109,28 +109,14 @@ public class ContinuousLevel : MonoBehaviour
 			//if(SoundBuoyScript.WorldBuoysList.Count == 0 && riverComplete)
 			//	ClearAllGameEntitiesOut();
 			//return;
-			foreach(BlackHoleScript bh in BlackHoleScript.WorldBlackHoles)
-			{
-				if(Network.isServer)
-					player1.UpdateAgainstBlackHole(bh);
-			}
 		}
+		
 		
 		if(p1 == null || p2 == null)
 			return;
 		
 		PlayerScript.FingerState p1finger = player1.MouseFingerDown();
 		PlayerScript.FingerState p2finger = player1.MouseFingerDown();
-		
-		
-		
-		foreach(BlackHoleScript bh in BlackHoleScript.WorldBlackHoles)
-		{
-			if(Network.isServer)
-				player1.UpdateAgainstBlackHole(bh);
-			else if(Network.isClient)
-				player2.UpdateAgainstBlackHole(bh);			
-		}
 		
 		if(p1finger == PlayerScript.FingerState.None && p2finger == PlayerScript.FingerState.None)
 			return;
