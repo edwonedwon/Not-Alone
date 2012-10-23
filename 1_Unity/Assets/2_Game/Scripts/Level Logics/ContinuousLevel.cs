@@ -122,8 +122,7 @@ public class ContinuousLevel : MonoBehaviour
 		PlayerScript.FingerState p1finger = player1.MouseFingerDown();
 		PlayerScript.FingerState p2finger = player1.MouseFingerDown();
 		
-		if(p1finger == PlayerScript.FingerState.None && p2finger == PlayerScript.FingerState.None)
-			return;
+		
 		
 		foreach(BlackHoleScript bh in BlackHoleScript.WorldBlackHoles)
 		{
@@ -132,6 +131,9 @@ public class ContinuousLevel : MonoBehaviour
 			else if(Network.isClient)
 				player2.UpdateAgainstBlackHole(bh);			
 		}
+		
+		if(p1finger == PlayerScript.FingerState.None && p2finger == PlayerScript.FingerState.None)
+			return;
 		
 		//Find out if they are touching...
 		Vector3 v1 = p1.transform.position;

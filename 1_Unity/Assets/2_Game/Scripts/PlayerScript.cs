@@ -215,7 +215,6 @@ public class PlayerScript : MonoBehaviour
 						
 						QuadrantsTouched[i, j].mouseLoopsAround = Mathf.Max(0, totalmangle / 360.0f);
 						
-						
 						if(QuadrantsTouched[i, j].mouseLoopsAround > 3.0f)
 						{
 							playa.SpawnVortex(camcam.ScreenToWorldPoint(new Vector2(screenx, screeny)));
@@ -511,7 +510,7 @@ public class PlayerScript : MonoBehaviour
             }
 			
 			int playerNm = isPlayer1 ? 1 : 2;			
-			blackHole.AddToRotationSpeed((totalmangle-previousMangle) * 0.2f, playerNm);
+			blackHole.AddToRotationSpeed((totalmangle-previousMangle) * 0.1f, playerNm);
 			previousMangle = totalmangle;
 		}		
 	}

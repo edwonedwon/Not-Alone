@@ -709,7 +709,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		float screenWidth = camcam.GetScreenWidth()-1;
 		float screenHeight = camcam.GetScreenHeight()-1;
 		
-		float dt = 1.0f / fluidFPS;
+		float dt = Time.fixedDeltaTime;
 		
 		Vector3 bholePos = bhole.transform.position;		
 		Vector3 screenPos = camcam.WorldToScreenPoint(bholePos);
@@ -718,7 +718,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		int radius = bhole.radius;		
 		float velocityPower = bhole.velocityPower;
 		float holePower = bhole.holePower;
-		float goalValue = bhole.inkSpit;		
+		float goalValue = bhole.inkSpit;
 		
 		float dx = bhole.spewingDirection.x;
 		float dy = bhole.spewingDirection.y;
