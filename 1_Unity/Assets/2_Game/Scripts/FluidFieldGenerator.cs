@@ -179,7 +179,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		RGBToHSV(FluidColor, out h1, out s1, out v1);
 		RGBToHSV(InkColor, out h2, out s2, out v2);
 			
-		h1 += UnityEngine.Random.Range(-270.0f, 270.0f);
+		h1 += 95.0f;//UnityEngine.Random.Range(-270.0f, 270.0f);
 		h2 = h1 + 180.0f;
 		
 		if(h1 > 360.0f)
@@ -304,8 +304,8 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public void ExplosionFromTheCentre()
 	{
-		DoVelocityBurst(0.5f, 0.5f, 30, -30.0f);
-		DoVelocityBurst(0.5f, 0.5f, 20, -5.0f);
+		DoVelocityBurst(0.5f, 0.5f, 30, -20.0f);
+		DoVelocityBurst(0.5f, 0.5f, 20, -4.0f);
 		//DoInkBurst(0.5f, 0.5f, 30, 1000);
 	}
 	
@@ -427,7 +427,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		System.Random rand = new System.Random();
 		
 		Vector2[] playerScreenPos = new Vector2[2] { Vector2.zero, Vector2.zero};
-		
+		Vector2[] playerWorldPos = new Vector2[2] { Vector2.zero, Vector2.zero};
 		
 		int inkLinks = 0;
 		
@@ -446,7 +446,8 @@ public class FluidFieldGenerator : MonoBehaviour
 			if(ownerPlayerMouseInfo[m].playerScript.DoLinkInk())
 				++inkLinks;
 			
-			Vector3 screenPos = camcam.WorldToViewportPoint(ownerPlayerMouseInfo[m].player.transform.position);
+			playerWorldPos[m] = ownerPlayerMouseInfo[m].player.transform.position;
+			Vector3 screenPos = camcam.WorldToViewportPoint(playerWorldPos[m]);
 			
 			playerScreenPos[m].x = screenPos.x;
 			playerScreenPos[m].y = screenPos.y;
@@ -518,11 +519,24 @@ public class FluidFieldGenerator : MonoBehaviour
 		amountOfAngriness = Mathf.Lerp(prevAng, amountOfAngriness, dt * 0.33f);
 			
 		if(inkLinks == 2)
-			InkAlongLine(playerScreenPos[0].x, playerScreenPos[0].y, playerScreenPos[1].x, playerScreenPos[1].y);
+		{
+			float offset = 15;
+			for(int i = 0; i < 5; ++i)
+			{
+				float frx1 = UnityEngine.Random.Range(-offset, offset);
+				float fry1 = UnityEngine.Random.Range(-offset, offset);
+				
+				float frx2 = UnityEngine.Random.Range(-offset, offset);
+				float fry2 = UnityEngine.Random.Range(-offset, offset);
+				InkAlongLine(playerWorldPos[0].x+frx1, playerWorldPos[0].y+fry1, playerWorldPos[1].x+frx2, playerWorldPos[1].y+fry2);
+			}
+		}
 	}
 	
     public void UpdateFluids(Vector3 position, Vector3 scale, Camera camcam, float visc, float diffus, float dt)
-    {			
+    {
+		linesToDraw.Clear();
+		
 		UpdateMouses(camcam, dt);
 
 		float viscosity = 0.000001f*visc;
@@ -555,8 +569,6 @@ public class FluidFieldGenerator : MonoBehaviour
 	{
 		if(spiritParticleSystem == null)
 			return;
-		
-		linesToDraw.Clear();
 		
 		int pcount = maxSpiritParticles;//spiritParticleSystem.particleCount;
 		UnityEngine.ParticleSystem.Particle[] particles = new UnityEngine.ParticleSystem.Particle[pcount];
@@ -632,7 +644,8 @@ public class FluidFieldGenerator : MonoBehaviour
 					{
 						//Add a line between all these guys!
 						float alpha = 1-(len / minLineDist);
-						linesToDraw.Add(new LineToDraw(ppos, ppos2, new Color(1.0f, 1.0f, 1.0f, alpha)));
+						Color col = new Color(1.0f, 1.0f, 1.0f, alpha);
+						linesToDraw.Add(new LineToDraw(ppos, ppos2, col, col));
 						++numConnectedParticles;
 					}
 					
@@ -676,12 +689,14 @@ public class FluidFieldGenerator : MonoBehaviour
 	{
 		public Vector2 pos1;
 		public Vector2 pos2;
-		public Color color;
-		public LineToDraw(Vector2 v1, Vector2 v2, Color col)
+		public Color color1;
+		public Color color2;
+		public LineToDraw(Vector2 v1, Vector2 v2, Color col1, Color col2)
 		{
 			pos1 = v1;
 			pos2 = v2;
-			color = col;
+			color1 = col1;
+			color2 = col2;
 		}
 	};
 	private ArrayList linesToDraw = new ArrayList();
@@ -696,8 +711,9 @@ public class FluidFieldGenerator : MonoBehaviour
 		{
 			LineToDraw ltd = (LineToDraw)linesToDraw[i];			
 			GL.Begin(GL.LINES);
-			GL.Color(ltd.color);
+			GL.Color(ltd.color1);
 			GL.Vertex(ltd.pos1);
+			GL.Color (ltd.color2);
 			GL.Vertex(ltd.pos2);
 			GL.End();
 		}
@@ -806,15 +822,40 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public void InkAlongLine(float posx1, float posy1, float posx2, float posy2)
 	{
+		
+		Vector2 v1 = new Vector2(posx1, posy1);
+		Vector2 v2 = new Vector2(posx2, posy2);
+		
+		Vector2 half = v1 + ((v2-v1)*0.5f);
+		
+		
+		Color col1 = new Color(1.0f, 1.0f, 1.0f, 1.0f);
+		Color col2 = new Color(1.0f, 1.0f, 1.0f, 0.0f);
+		
+		
+		linesToDraw.Add(new LineToDraw(v1, half, col2, col1));
+		linesToDraw.Add(new LineToDraw(half, v2, col1, col2));
+		
+		
+		
+		
+		
+		
+		return;
+		
 		int x1 =  (int)(posx1 * N);
 		int y1 =  (int)(posy1 * N);
 		
 		int x2 =  (int)(posx2 * N);
 		int y2 =  (int)(posy2 * N);
 		
-		int dx = (int)Mathf.Abs(x2 - x1);
-        int dy = (int)Mathf.Abs(y2 - y1);
+		Vector3 line = new Vector3(x2-x1, y2-y1, 0);
+		int dx = (int)Mathf.Abs(line.x);
+        int dy = (int)Mathf.Abs(line.y);
             
+		
+		line = Quaternion.Euler(0, 0, 90) * line;
+		
 		int sx = 1;
 		int sy = 1;
             
@@ -828,8 +869,11 @@ public class FluidFieldGenerator : MonoBehaviour
         while (true)
         {
 			if(x1 >= 0 && x1 < N && y1 >= 0 && y1 < N)
-				densityField[x1, y1] += 10.1f;
-			
+			{
+				u[x1,y1] = line.x*0.05f;
+				v[x1,y1] = line.y*0.05f;
+			//	densityField[x1, y1] += 20.1f;
+			}
             if (x1 == x2 && y2 == y1)
                 break;
 			

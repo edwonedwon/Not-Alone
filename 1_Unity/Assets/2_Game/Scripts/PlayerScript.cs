@@ -98,7 +98,7 @@ public class PlayerScript : MonoBehaviour
 			
 			int borderSquaresCovered = 0;
 			int innerSquresCovered = 0;
-			int borderSize = 7;
+			int borderSize = 10;
 			for(int i = 0; i < QuadrantDensity; ++i)
 			{
 				for(int j = 0; j < QuadrantDensity; ++j)
@@ -123,7 +123,7 @@ public class PlayerScript : MonoBehaviour
 			//		"\nQuadrantDensity x 4: " + (QuadrantDensity*4).ToString();
 			//DebugStreamer.message = msg;
 			
-			if(innerSquresCovered < 50 && borderSquaresCovered > 10)
+			if(innerSquresCovered < 40 && borderSquaresCovered > 100)
 				return true;
 			
 			return false;
@@ -166,6 +166,7 @@ public class PlayerScript : MonoBehaviour
 			QuadrantsTouched[xQuadrant, yQuadrant].touched = true;
 			QuadrantsTouched[xQuadrant, yQuadrant].timer = 100;
 			
+			
 			calculateLoopsTimer -= Time.fixedDeltaTime;
 			if(calculateLoopsTimer < 0.0f)
 			{
@@ -173,9 +174,12 @@ public class PlayerScript : MonoBehaviour
 				Camera camcam = Camera.main;
 				for(int i = 0; i < QuadrantDensity; ++i)
 				{
+					if(UnityEngine.Random.Range(0, 100) > 50)
+						continue;
+					
 					float deltai = (float)i / (float)(QuadrantDensity-1);
 					for(int j = 0; j < QuadrantDensity; ++j)
-					{
+					{	
 						float deltaj = (float)j / (float)(QuadrantDensity-1);
 						float compundedMangle = 0.0f;
 	            		float totalmangle = 0.0f;
@@ -215,11 +219,14 @@ public class PlayerScript : MonoBehaviour
 						
 						QuadrantsTouched[i, j].mouseLoopsAround = Mathf.Max(0, totalmangle / 360.0f);
 						
-						if(QuadrantsTouched[i, j].mouseLoopsAround > 3.0f)
+						if(QuadrantsTouched[i, j].mouseLoopsAround > 1.0f)	//two circles to make one appear!
 						{
-							playa.SpawnVortex(camcam.ScreenToWorldPoint(new Vector2(screenx, screeny)));
-							QuadrantsTouched[i, j].mouseLoopsAround = 0;
-							return;
+							if(this.TimeSinceLastTouchDown > 0.5f)
+							{
+								playa.SpawnVortex(camcam.ScreenToWorldPoint(new Vector2(screenx, screeny)));
+								QuadrantsTouched[i, j].mouseLoopsAround = 0;
+								return;
+							}
 						}
 					}
 				}
@@ -567,7 +574,6 @@ public class PlayerScript : MonoBehaviour
 			if(currentFingerState == FingerState.Single)
 			{
 				
-				
 				//current semi-hack to place pinched-prefab object. must also be handled in the OnPinchEnd()
 				if(PinchCreateObjectPrefab != null)
 				{
@@ -645,7 +651,7 @@ public class PlayerScript : MonoBehaviour
 		*/
 		
 		
-		if(currentMousePoints.Count > 90)
+		if(currentMousePoints.Count > 60)
 			currentMousePoints.RemoveAt(0);
 		currentMousePoints.Add(pos);
 		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(pos.x, pos.y, zOffset));
@@ -702,21 +708,27 @@ public class PlayerScript : MonoBehaviour
 	private float pinchSizeAtBegin = 0;
 	public void OnPinchBegin (Vector2 fingerPos1, Vector2 fingerPos2)		
 	{
+		currentMovements.ResetHitQuadrants();
 		if(RippleObjectPrefab != null)
 		{
 			pinchSizeAtBegin = (fingerPos2-fingerPos1).magnitude;
-			GameObject.Instantiate(RippleObjectPrefab, fingerPos1, Quaternion.identity);
-			GameObject.Instantiate(RippleObjectPrefab, fingerPos2, Quaternion.identity);
+			//GameObject.Instantiate(RippleObjectPrefab, fingerPos1, Quaternion.identity);
+			//GameObject.Instantiate(RippleObjectPrefab, fingerPos2, Quaternion.identity);
 		}
 	}
 	
 	public void OnPinchEnd (Vector2 fingerPos1, Vector2 fingerPos2)		
 	{
+		currentMovements.ResetHitQuadrants();
 		if(PinchCreateObjectPrefab != null)
 		{
 			Vector2 diff = fingerPos2-fingerPos1;
-			if(diff.magnitude < pinchSizeAtBegin)
-				Network.Instantiate(PinchCreateObjectPrefab, fingerPos1 + (diff*0.5f), Quaternion.identity, 0);
+			float mag = diff.magnitude;
+			if(mag < 132.0f && diff.magnitude < pinchSizeAtBegin)
+			{
+				Vector2 worldPos = Camera.main.ScreenToWorldPoint(fingerPos1+(diff*0.5f));
+				Network.Instantiate(PinchCreateObjectPrefab, worldPos, Quaternion.identity, 0);
+			}
 		}
 	}
 	

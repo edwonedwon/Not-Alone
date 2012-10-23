@@ -63,17 +63,23 @@ public class ContinuousLevel : MonoBehaviour
 	
 	void ClearAllGameEntitiesOut()
 	{
-		//Destroy buoy objects
-		GameObject[] soundBuoys = GameObject.FindGameObjectsWithTag("buoy");		
-		foreach(GameObject go in soundBuoys)
-			GameObject.Destroy(go);		
-		
-		//Remove all spirit particles
-		fluidField.IncreaseSpiritParticles(-1, 0);
-		
-		//clear out the black holes!
-		foreach(BlackHoleScript bhs in BlackHoleScript.WorldBlackHoles)
-			GameObject.Destroy(bhs.gameObject);
+		Network.SetSendingEnabled(0, false);
+		Network.isMessageQueueRunning = false;
+	
+		if(Network.isServer)
+		{
+			//Destroy buoy objects
+			GameObject[] soundBuoys = GameObject.FindGameObjectsWithTag("buoy");		
+			foreach(GameObject go in soundBuoys)
+				Network.Destroy(go);		
+			
+			//Remove all spirit particles
+			fluidField.IncreaseSpiritParticles(-1, 0);
+			
+			//clear out the black holes!
+			foreach(BlackHoleScript bhs in BlackHoleScript.WorldBlackHoles)
+				Network.Destroy(bhs.gameObject);
+		}
 		
 		//clear static lists
 		SoundBuoyScript.RiverList.Clear();
@@ -81,7 +87,10 @@ public class ContinuousLevel : MonoBehaviour
 		BlackHoleScript.WorldBlackHoles.Clear();
 		
 		//drop an explosion in the fluid field!
-		fluidField.ExplosionFromTheCentre();		
+		fluidField.ExplosionFromTheCentre();
+		
+		Network.isMessageQueueRunning = true;
+		Network.SetSendingEnabled(0, true);
 	}
 	
 	void FixedUpdate ()
@@ -105,7 +114,7 @@ public class ContinuousLevel : MonoBehaviour
 		if(p1 != null && p2 != null)
 		{
 			PlayerScript.FingerState p1finger = player1.MouseFingerDown();
-			PlayerScript.FingerState p2finger = player1.MouseFingerDown();
+			PlayerScript.FingerState p2finger = player2.MouseFingerDown();
 			
 			foreach(BlackHoleScript bh in BlackHoleScript.WorldBlackHoles)
 			{
@@ -113,6 +122,21 @@ public class ContinuousLevel : MonoBehaviour
 					player1.UpdateAgainstBlackHole(bh);
 				else if(Network.isClient)
 					player2.UpdateAgainstBlackHole(bh);			
+			}
+			
+			
+			bool canCreateRiverBetweenActivatedBuoys = false;
+			int buoysWithFingersDownActivated = 0;
+			
+			if(Network.isServer)
+			{
+				foreach(SoundBuoyScript sbs in SoundBuoyScript.WorldBuoysList)
+				{
+					
+					
+					
+					
+				}	
 			}
 			
 			//Find out if they are touching...
@@ -127,6 +151,7 @@ public class ContinuousLevel : MonoBehaviour
 					timeTogetherNotMoving += Time.deltaTime;
 				if(timeTogetherNotMoving > 5.0f)
 				{
+					timeTogetherNotMoving = 0;
 					ClearAllGameEntitiesOut();
 					//GameLogicController.instance.MoveToNextLevel();		//not anymore!
 				}

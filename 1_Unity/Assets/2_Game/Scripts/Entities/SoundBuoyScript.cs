@@ -34,26 +34,33 @@ public class SoundBuoyScript : MonoBehaviour
 	
 	private ArrayList p1MovementPoints = new ArrayList(250);
 	
+	public static bool CloseToOthers(GameObject go, float minDistance)
+	{
+		if(WorldBuoysList.Count > 0)
+		{
+			foreach(SoundBuoyScript sbs in WorldBuoysList)
+			{
+				if(sbs.gameObject != go)
+				{
+					if((sbs.transform.position-go.transform.position).magnitude < minDistance)
+						return true;
+				}
+			}
+		}
+		return false;
+	}
+	
 	void Start()
 	{
 		int maxBuoys = 5;	//max limit available
-		if(WorldBuoysList.Count > 0)
-		{
-			bool tooCloseToOThers = false;
-			foreach(SoundBuoyScript sbs in WorldBuoysList)
-			{
-				if((sbs.transform.position-this.transform.position).magnitude < 100)
-				{
-					tooCloseToOThers = true;
-					break;
-				}
-			}
+		bool tooCloseToOthers = SoundBuoyScript.CloseToOthers(gameObject, 100.0f);
+		if(!tooCloseToOthers)
+			tooCloseToOthers = BlackHoleScript.CloseToOthers(gameObject, 100.0f);
 			
-			if(WorldBuoysList.Count >= maxBuoys || tooCloseToOThers)
-			{
-				DestroyImmediate(gameObject);
-				return;
-			}
+		if(WorldBuoysList.Count >= maxBuoys || tooCloseToOthers)
+		{
+			DestroyImmediate(gameObject);
+			return;
 		}
 		
 		WorldBuoysList.Add(this);
@@ -334,7 +341,6 @@ public class SoundBuoyScript : MonoBehaviour
 			activatedFrames = (int)UnityEngine.Random.Range(0, 3);
 			DeactiveTimer = 1.5f;
 		}
-		
 	}
 
 	

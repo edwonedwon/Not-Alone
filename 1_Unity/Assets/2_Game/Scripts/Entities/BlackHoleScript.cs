@@ -20,8 +20,36 @@ public class BlackHoleScript : MonoBehaviour
 	private bool HitByPlayer1 = false;
 	private bool HitByPlayer2 = false;
 	
+	public static bool CloseToOthers(GameObject go, float minDistance)
+	{
+		if(WorldBlackHoles.Count > 0)
+		{
+			bool tooCloseToOThers = false;
+			foreach(BlackHoleScript bh in WorldBlackHoles)
+			{
+				if(bh.gameObject != go)
+				{
+					if((bh.transform.position-go.transform.position).magnitude < minDistance)
+						return true;
+				}
+			}
+		}
+		return false;
+	}
+	
 	void Start()
-	{		
+	{
+		int maxBlackHoles = 4;
+		bool tooCloseToOthers = SoundBuoyScript.CloseToOthers(gameObject, 100.0f);
+		if(!tooCloseToOthers)
+			tooCloseToOthers = BlackHoleScript.CloseToOthers(gameObject, 100.0f);
+			
+		if(WorldBlackHoles.Count >= maxBlackHoles || tooCloseToOthers)
+		{
+			DestroyImmediate(gameObject);
+			return;
+		}
+		
 		WorldBlackHoles.Add(this);
 	}	
 	
