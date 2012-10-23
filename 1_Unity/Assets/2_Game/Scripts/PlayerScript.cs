@@ -123,7 +123,7 @@ public class PlayerScript : MonoBehaviour
 			//		"\nQuadrantDensity x 4: " + (QuadrantDensity*4).ToString();
 			//DebugStreamer.message = msg;
 			
-			if(innerSquresCovered < 40 && borderSquaresCovered > 100)
+			if(innerSquresCovered < 40 && borderSquaresCovered > 60)
 				return true;
 			
 			return false;
@@ -165,7 +165,6 @@ public class PlayerScript : MonoBehaviour
 			
 			QuadrantsTouched[xQuadrant, yQuadrant].touched = true;
 			QuadrantsTouched[xQuadrant, yQuadrant].timer = 100;
-			
 			
 			calculateLoopsTimer -= Time.fixedDeltaTime;
 			if(calculateLoopsTimer < 0.0f)
@@ -584,9 +583,9 @@ public class PlayerScript : MonoBehaviour
 				
 				if(diff.magnitude < 30.0f)
 				{
-					if(++numberOfTapsInSameSpot > 3)
+					if(++numberOfTapsInSameSpot > 2)
 					{
-						if(UnityEngine.Random.Range (0, 100) > 50.0f)						
+						if(UnityEngine.Random.Range (0, 100) > 25.0f)						
 							fluidField.IncreaseSpiritParticles(1, isPlayer1 ? 0 : 1);						
 					}
 				}
@@ -708,7 +707,7 @@ public class PlayerScript : MonoBehaviour
 	private float pinchSizeAtBegin = 0;
 	public void OnPinchBegin (Vector2 fingerPos1, Vector2 fingerPos2)		
 	{
-		currentMovements.ResetHitQuadrants();
+		
 		if(RippleObjectPrefab != null)
 		{
 			pinchSizeAtBegin = (fingerPos2-fingerPos1).magnitude;
@@ -719,7 +718,7 @@ public class PlayerScript : MonoBehaviour
 	
 	public void OnPinchEnd (Vector2 fingerPos1, Vector2 fingerPos2)		
 	{
-		currentMovements.ResetHitQuadrants();
+		
 		if(PinchCreateObjectPrefab != null)
 		{
 			Vector2 diff = fingerPos2-fingerPos1;

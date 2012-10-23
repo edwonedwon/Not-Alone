@@ -14,6 +14,9 @@ public class SoundBuoyScript : MonoBehaviour
 	
 	private FluidFieldGenerator fluidField = null;
 	public tk2dAnimatedSprite sprite = null;
+	private string[] buoyAnimations = new string[7];
+	
+	
 	public GameObject flareTemplate = null;
 	
 	public float riverPower = 2.0f;
@@ -63,9 +66,49 @@ public class SoundBuoyScript : MonoBehaviour
 			return;
 		}
 		
+		
+		buoyAnimations[0] = "appear";
+		buoyAnimations[1] = "moving";
+		buoyAnimations[2] = "drop";
+		buoyAnimations[3] = "ringing";
+		buoyAnimations[4] = "ding";
+		buoyAnimations[5] = "sink";
+		buoyAnimations[6] = "underwater";
+	
+		sprite.animationCompleteDelegate += AnimationComplete;
+		
 		WorldBuoysList.Add(this);
 		fluidField = GameObject.FindGameObjectWithTag("fluidField").GetComponent<FluidFieldGenerator>();
 	}	
+	
+	
+	public void AnimationComplete (tk2dAnimatedSprite anim, int clipId)
+	{
+		switch (clipId)
+		{
+		case 0:	//appear
+			anim.Play(buoyAnimations[1]);
+			break;
+		case 1: //moving
+			anim.Play(buoyAnimations[1]);
+			break;
+		case 2:	//drop
+			anim.Play(buoyAnimations[1]);
+			break;
+		case 3:	//ringing
+			anim.Play(buoyAnimations[1]);
+			break;
+		case 4:	//ding
+			anim.Play(buoyAnimations[1]);
+			break;
+		case 5:	//sink
+			anim.Play(buoyAnimations[6]);
+			break;
+		case 6:	//underwater
+			anim.Play(buoyAnimations[6]);
+			break;
+		}
+	}
 	
 	void OnEnable()
 	{
@@ -255,9 +298,9 @@ public class SoundBuoyScript : MonoBehaviour
 		Vector2 v1 = p1.transform.position;
 		//Vector2 v2 = p2.transform.position;
 		
-		Vector3 scale = transform.localScale;
-		scale = Vector2.Lerp(scale, originalScale*(Mathf.Abs(Mathf.Cos(Time.realtimeSinceStartup*7)) * 1.3f + 0.4f), 3.0f*dt);
-		transform.localScale = scale;
+		//Vector3 scale = transform.localScale;
+		//scale = Vector2.Lerp(scale, originalScale*(Mathf.Abs(Mathf.Cos(Time.realtimeSinceStartup*7)) * 1.3f + 0.4f), 3.0f*dt);
+		//transform.localScale = scale;
 		
 		float increaseRate = 3.0f;
 		float decreaseRate = 5.0f;
@@ -290,7 +333,7 @@ public class SoundBuoyScript : MonoBehaviour
 				if(submerged)
 					power *= 0.2f;
 				fluidField.DropVelocityInDirection(vMe.x, vMe.y, vBurstDirection.x, vBurstDirection.y, power);
-				sprite.color = Color.Lerp(sprite.color, Color.white, dt*increaseRate);
+				//sprite.color = Color.Lerp(sprite.color, Color.white, dt*increaseRate);
 			}
 		}		
 		
@@ -308,7 +351,9 @@ public class SoundBuoyScript : MonoBehaviour
 			{
 				++activatedFrames;
 				if(BurstActivated)
-					sprite.color = Color.Lerp(sprite.color, Color.blue, dt*increaseRate);
+				{
+					//sprite.color = Color.Lerp(sprite.color, Color.blue, dt*increaseRate);
+				}
 				DeactiveTimer -= Time.fixedDeltaTime;
 				if(DeactiveTimer < 0.0f)
 				{
@@ -318,7 +363,7 @@ public class SoundBuoyScript : MonoBehaviour
 			}
 			else
 			{
-				sprite.color = Color.Lerp (sprite.color, Color.yellow, dt*decreaseRate);
+				//sprite.color = Color.Lerp (sprite.color, Color.yellow, dt*decreaseRate);
 			}
 		
 		if(!submerged)

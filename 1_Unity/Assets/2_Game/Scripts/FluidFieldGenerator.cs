@@ -127,7 +127,7 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public void ChangeColors()
 	{
-		networkView.RPC ("RotateColors", RPCMode.All);
+		networkView.RPC ("RotateColors", RPCMode.AllBuffered);
 	}
 	
 	[RPC]	
@@ -139,16 +139,12 @@ public class FluidFieldGenerator : MonoBehaviour
 		RGBToHSV(FluidColor, out h1, out s1, out v1);
 		RGBToHSV(InkColor, out h2, out s2, out v2);
 			
-		h1 += 95.0f;//UnityEngine.Random.Range(-270.0f, 270.0f);
-		h2 = h1 + 180.0f;
+		h1 = UnityEngine.Random.Range(0, 360);
 		
-		if(h1 > 360.0f)
-			h1 -= 360.0f;
+		h2 = h1 + 180.0f;
 		if(h2 > 360.0f)
 			h2 -= 360.0f;
-		if(h1 < 0.0f)
-			h1 += 360.0f;
-		if(h2 < 0.0f)
+		else if(h2 < 0.0f)
 			h2 += 360.0f;
 		
 		FluidColor = HSVToRGB(h1, s1, v1, 1.0f);
@@ -478,7 +474,7 @@ public class FluidFieldGenerator : MonoBehaviour
 			
 		if(inkLinks == 2)
 		{
-			float offset = 15;
+			float offset = 3;
 			for(int i = 0; i < 5; ++i)
 			{
 				float frx1 = UnityEngine.Random.Range(-offset, offset);
