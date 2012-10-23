@@ -123,7 +123,7 @@ public class PlayerScript : MonoBehaviour
 			//		"\nQuadrantDensity x 4: " + (QuadrantDensity*4).ToString();
 			//DebugStreamer.message = msg;
 			
-			if(innerSquresCovered < 10 && borderSquaresCovered > 150)
+			if(innerSquresCovered < 50 && borderSquaresCovered > 10)
 				return true;
 			
 			return false;
@@ -645,7 +645,7 @@ public class PlayerScript : MonoBehaviour
 		*/
 		
 		
-		if(currentMousePoints.Count > 200)
+		if(currentMousePoints.Count > 90)
 			currentMousePoints.RemoveAt(0);
 		currentMousePoints.Add(pos);
 		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(pos.x, pos.y, zOffset));

@@ -427,7 +427,9 @@ public class FluidFieldGenerator : MonoBehaviour
 		System.Random rand = new System.Random();
 		
 		Vector2[] playerScreenPos = new Vector2[2] { Vector2.zero, Vector2.zero};
-		bool doLinkInk = false;
+		
+		
+		int inkLinks = 0;
 		
 		float prevSad = amountOfSadness;
 		float prevHap = amountOfHappiness;
@@ -442,7 +444,7 @@ public class FluidFieldGenerator : MonoBehaviour
 			if(ownerPlayerMouseInfo[m].player == null)
 				continue;
 			if(ownerPlayerMouseInfo[m].playerScript.DoLinkInk())
-				doLinkInk = true;
+				++inkLinks;
 			
 			Vector3 screenPos = camcam.WorldToViewportPoint(ownerPlayerMouseInfo[m].player.transform.position);
 			
@@ -515,7 +517,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		amountOfHappiness = Mathf.Lerp(prevHap, amountOfHappiness, dt * 0.33f);
 		amountOfAngriness = Mathf.Lerp(prevAng, amountOfAngriness, dt * 0.33f);
 			
-		if(doLinkInk)
+		if(inkLinks == 2)
 			InkAlongLine(playerScreenPos[0].x, playerScreenPos[0].y, playerScreenPos[1].x, playerScreenPos[1].y);
 	}
 	
@@ -826,7 +828,7 @@ public class FluidFieldGenerator : MonoBehaviour
         while (true)
         {
 			if(x1 >= 0 && x1 < N && y1 >= 0 && y1 < N)
-				densityField[x1, y1] += 0.1f;
+				densityField[x1, y1] += 10.1f;
 			
             if (x1 == x2 && y2 == y1)
                 break;

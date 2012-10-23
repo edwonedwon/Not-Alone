@@ -15,7 +15,6 @@ public class ContinuousLevel : MonoBehaviour
 	
 	//game-style: tapping on screen calling out plankton
 	
-	
 	void Start ()
 	{
 		Application.targetFrameRate = 30;
@@ -100,74 +99,54 @@ public class ContinuousLevel : MonoBehaviour
 				player2 = p2.GetComponent<PlayerScript>();
 		}
 	
-		
+		bool doInkLink = false;
 		bool riverComplete = SoundBuoyScript.CheckForRiverCompletion();
 		
-		
-		if(p1 != null)
+		if(p1 != null && p2 != null)
 		{
-			//if(SoundBuoyScript.WorldBuoysList.Count == 0 && riverComplete)
-			//	ClearAllGameEntitiesOut();
-			//return;
+			PlayerScript.FingerState p1finger = player1.MouseFingerDown();
+			PlayerScript.FingerState p2finger = player1.MouseFingerDown();
+			
 			foreach(BlackHoleScript bh in BlackHoleScript.WorldBlackHoles)
 			{
 				if(Network.isServer)
 					player1.UpdateAgainstBlackHole(bh);
+				else if(Network.isClient)
+					player2.UpdateAgainstBlackHole(bh);			
 			}
-		}
-		
-		if(p1 == null || p2 == null)
-			return;
-		
-		PlayerScript.FingerState p1finger = player1.MouseFingerDown();
-		PlayerScript.FingerState p2finger = player1.MouseFingerDown();
-		
-		
-		
-		foreach(BlackHoleScript bh in BlackHoleScript.WorldBlackHoles)
-		{
-			if(Network.isServer)
-				player1.UpdateAgainstBlackHole(bh);
-			else if(Network.isClient)
-				player2.UpdateAgainstBlackHole(bh);			
-		}
-		
-		if(p1finger == PlayerScript.FingerState.None && p2finger == PlayerScript.FingerState.None)
-			return;
-		
-		//Find out if they are touching...
-		Vector3 v1 = p1.transform.position;
-		Vector3 v2 = p2.transform.position;
-		
-		float difference = (v1-v2).magnitude;		
-		
-		if(difference < 50.0f)
-		{
-			timeTogetherNotMoving += Time.deltaTime;
-			if(timeTogetherNotMoving > 5.0f)
+			
+			//Find out if they are touching...
+			Vector3 v1 = p1.transform.position;
+			Vector3 v2 = p2.transform.position;
+			
+			float difference = (v1-v2).magnitude;		
+			
+			if(difference < 50.0f)
 			{
-				ClearAllGameEntitiesOut();
-				//GameLogicController.instance.MoveToNextLevel();		//not anymore!
+				if(p1finger == PlayerScript.FingerState.Single && p2finger == PlayerScript.FingerState.Single)
+					timeTogetherNotMoving += Time.deltaTime;
+				if(timeTogetherNotMoving > 5.0f)
+				{
+					ClearAllGameEntitiesOut();
+					//GameLogicController.instance.MoveToNextLevel();		//not anymore!
+				}
 			}
-		}
-		else
-		{
-			if(timeTogetherNotMoving >= 1.0f)
+			else
 			{
-				player1.SetDoLinkInk(true);
-				player2.SetDoLinkInk(true);
+				if(timeTogetherNotMoving >= 1.0f)
+				{
+					player1.SetDoLinkInk(true);
+					player2.SetDoLinkInk(true);
+				}
+				timeTogetherNotMoving = 0.0f;
 			}
-			timeTogetherNotMoving = 0.0f;
+			
+			if(p1finger != PlayerScript.FingerState.Single || p2finger != PlayerScript.FingerState.Single)
+			{
+				timeTogetherNotMoving = 0;
+				player1.SetDoLinkInk(false);
+				player2.SetDoLinkInk(false);
+			}
 		}
-		
-		if(p1finger != PlayerScript.FingerState.Single || p2finger != PlayerScript.FingerState.Single)
-		{
-			player1.SetDoLinkInk(false);
-			player2.SetDoLinkInk(false);
-		}
-		
-		
-		
-		
 	}
 }
