@@ -13,7 +13,8 @@ public class BlackHoleScript : MonoBehaviour
 	public float RotationSpeed = 100;
 	
 	private bool shrinkAndDissapear = false;
-	
+	public AudioSource audio = null;
+	public AudioClip blackHoleInstantiated = null;
 	public Vector3 spewingDirection = new Vector3(1, 1, 1);
 	public float spewRotation = 0.0f;
 	
@@ -51,10 +52,12 @@ public class BlackHoleScript : MonoBehaviour
 		}
 		
 		WorldBlackHoles.Add(this);
+		
 	}	
 	
 	void OnEnable()
 	{
+		audio.PlayOneShot(blackHoleInstantiated);
 		networkView.observed = this;
 	}
 	
