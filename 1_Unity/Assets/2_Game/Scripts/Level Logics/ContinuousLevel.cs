@@ -38,7 +38,6 @@ public class ContinuousLevel : MonoBehaviour
 		
 	}
 	
-	
 	void OnSerializeNetworkView (BitStream stream, NetworkMessageInfo info)
 	{
 		//int mouseState = (int)currentFingerState;
@@ -58,8 +57,6 @@ public class ContinuousLevel : MonoBehaviour
 		//currentFingerState = (FingerState)mouseState;
 		//transform.position = pos;
 	}
-	
-	
 	
 	void ClearAllGameEntitiesOut()
 	{

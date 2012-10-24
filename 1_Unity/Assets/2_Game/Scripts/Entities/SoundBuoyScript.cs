@@ -85,8 +85,15 @@ public class SoundBuoyScript : MonoBehaviour
 	
 	public void SetCurrentAnimation(int idx)
 	{
-		sprite.Play(buoyAnimations[idx]);
+		networkView.RPC ("PlayAnimation", RPCMode.AllBuffered, idx);
 	}
+	
+	public void PlayRingingSound()
+	{
+		
+		networkView.RPC ("PlayRing", RPCMode.AllBuffered);
+	}
+	
 	
 	public void AnimationComplete (tk2dAnimatedSprite anim, int clipId)
 	{
@@ -127,21 +134,16 @@ public class SoundBuoyScript : MonoBehaviour
 		WorldBuoysList.Remove(this);
 	}
 	
-	public void AddToRotationSpeed(float additionalRot, int playerNm)
-	{
-		//networkView.RPC ("SetRotationSpeed", RPCMode.All, (RotationSpeed+additionalRot), playerNm);
-	}
 	
 	[RPC]
-	void SetRotationSpeed(float newRotationSpeed, int playerNm)
+	void PlayAnimation(int idx)
 	{
-		//if(playerNm == 1)
-		//	HitByPlayer1 = true;
-		//else if(playerNm == 2)
-		//	HitByPlayer2 = true;
-		
-		//if(HitByPlayer1 && HitByPlayer2)
-		//	RotationSpeed = newRotationSpeed;
+		sprite.Play(buoyAnimations[idx]);
+	}
+	[RPC]
+	void PlayRing()
+	{
+		audio.PlayOneShot(ringingSounds[WorldBuoysList.IndexOf(this)]);
 	}
 	
 	
@@ -349,7 +351,7 @@ public class SoundBuoyScript : MonoBehaviour
 			vBurstDirection.Normalize();
 			if(newcircles > 0)
 			{
-				audio.PlayOneShot(ringingSounds[WorldBuoysList.IndexOf(this)]);
+				PlayRingingSound();
 				SetCurrentAnimation(3);
 			}
 			//for(int i = 0; i < newcircles; ++i)
