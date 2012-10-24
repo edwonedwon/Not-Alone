@@ -16,8 +16,10 @@ public class SoundBuoyScript : MonoBehaviour
 	public tk2dAnimatedSprite sprite = null;
 	private string[] buoyAnimations = new string[7];
 	
-	
 	public GameObject flareTemplate = null;
+	
+	public AudioSource audio = null;
+	public AudioClip[] ringingSounds = new AudioClip[5];
 	
 	public float riverPower = 2.0f;
 	
@@ -81,25 +83,36 @@ public class SoundBuoyScript : MonoBehaviour
 		fluidField = GameObject.FindGameObjectWithTag("fluidField").GetComponent<FluidFieldGenerator>();
 	}	
 	
+	public void SetCurrentAnimation(int idx)
+	{
+		networkView.RPC ("PlayAnimation", RPCMode.AllBuffered, idx);
+	}
+	
+	public void PlayRingingSound()
+	{
+		
+		networkView.RPC ("PlayRing", RPCMode.AllBuffered);
+	}
+	
 	
 	public void AnimationComplete (tk2dAnimatedSprite anim, int clipId)
 	{
 		switch (clipId)
 		{
 		case 0:	//appear
-			anim.Play(buoyAnimations[1]);
+			anim.Play(buoyAnimations[2]);
 			break;
 		case 1: //moving
-			anim.Play(buoyAnimations[1]);
+			anim.Play(buoyAnimations[2]);
 			break;
 		case 2:	//drop
-			anim.Play(buoyAnimations[1]);
+			anim.Play(buoyAnimations[2]);
 			break;
 		case 3:	//ringing
-			anim.Play(buoyAnimations[1]);
+			anim.Play(buoyAnimations[2]);
 			break;
 		case 4:	//ding
-			anim.Play(buoyAnimations[1]);
+			anim.Play(buoyAnimations[2]);
 			break;
 		case 5:	//sink
 			anim.Play(buoyAnimations[6]);
@@ -121,21 +134,16 @@ public class SoundBuoyScript : MonoBehaviour
 		WorldBuoysList.Remove(this);
 	}
 	
-	public void AddToRotationSpeed(float additionalRot, int playerNm)
-	{
-		//networkView.RPC ("SetRotationSpeed", RPCMode.All, (RotationSpeed+additionalRot), playerNm);
-	}
 	
 	[RPC]
-	void SetRotationSpeed(float newRotationSpeed, int playerNm)
+	void PlayAnimation(int idx)
 	{
-		//if(playerNm == 1)
-		//	HitByPlayer1 = true;
-		//else if(playerNm == 2)
-		//	HitByPlayer2 = true;
-		
-		//if(HitByPlayer1 && HitByPlayer2)
-		//	RotationSpeed = newRotationSpeed;
+		sprite.Play(buoyAnimations[idx]);
+	}
+	[RPC]
+	void PlayRing()
+	{
+		audio.PlayOneShot(ringingSounds[WorldBuoysList.IndexOf(this)]);
 	}
 	
 	
@@ -265,7 +273,8 @@ public class SoundBuoyScript : MonoBehaviour
 	public void Submerge()
 	{
 		submerged = true;
-		originalScale = Vector2.zero;		
+		originalScale = Vector2.zero;
+		SetCurrentAnimation(5);	//sink...
 	}
 	
 	void FixedUpdate()
@@ -283,20 +292,20 @@ public class SoundBuoyScript : MonoBehaviour
 				player2 = p2.GetComponent<PlayerScript>();
 		}
 	
-		if(p1 == null)// || p2 == null)
+		if(p1 == null || p2 == null)
 			return;
 				
 		float dt = Time.fixedDeltaTime;
 		
 		PlayerScript.FingerState p1finger = player1.MouseFingerDown();
-		//PlayerScript.FingerState p2finger = player1.MouseFingerDown();
+		PlayerScript.FingerState p2finger = player1.MouseFingerDown();
 		
 		int circles = NumCirclesAroundBuoy();
 		int newcircles = circles - numCirclesCompleted;
 		numCirclesCompleted = circles;
 		Vector2 vMe = transform.position;
 		Vector2 v1 = p1.transform.position;
-		//Vector2 v2 = p2.transform.position;
+		Vector2 v2 = p2.transform.position;
 		
 		//Vector3 scale = transform.localScale;
 		//scale = Vector2.Lerp(scale, originalScale*(Mathf.Abs(Mathf.Cos(Time.realtimeSinceStartup*7)) * 1.3f + 0.4f), 3.0f*dt);
@@ -340,11 +349,16 @@ public class SoundBuoyScript : MonoBehaviour
 		if(!submerged)
 		{
 			vBurstDirection.Normalize();
-			for(int i = 0; i < newcircles; ++i)
+			if(newcircles > 0)
 			{
-				Network.Instantiate(flareTemplate, transform.position, Quaternion.identity, 0);
-				fluidField.DropVelocityInDirection(vMe.x, vMe.y, vBurstDirection.x, vBurstDirection.y, riverPower);
+				PlayRingingSound();
+				SetCurrentAnimation(3);
 			}
+			//for(int i = 0; i < newcircles; ++i)
+			//{
+			//	Network.Instantiate(flareTemplate, transform.position, Quaternion.identity, 0);
+			//	fluidField.DropVelocityInDirection(vMe.x, vMe.y, vBurstDirection.x, vBurstDirection.y, riverPower);
+			//}
 		}
 		
 			if(BurstActivated || SoundActivated)
@@ -368,15 +382,27 @@ public class SoundBuoyScript : MonoBehaviour
 		
 		if(!submerged)
 		{
-			if(p1finger == PlayerScript.FingerState.None)// && p2finger == PlayerScript.FingerState.None)
+			if(Network.isServer)
 			{
-				numCirclesCompleted = 0;
-				p1MovementPoints.Clear();
-			}		
+				p1MovementPoints.Add(v1);
+				if(p1finger == PlayerScript.FingerState.None)// && p2finger == PlayerScript.FingerState.None)
+				{
+					numCirclesCompleted = 0;
+					p1MovementPoints.Clear();
+				}
+				
+			}
+			else if(Network.isClient)
+			{
+				p1MovementPoints.Add(v2);
+				if(p2finger == PlayerScript.FingerState.None)// && p2finger == PlayerScript.FingerState.None)
+				{
+					numCirclesCompleted = 0;
+					p1MovementPoints.Clear();
+				}
+			}
 			
-			int p1MovementsCount = p1MovementPoints.Count;
-			p1MovementPoints.Add(v1);
-			if(p1MovementsCount > 249)
+			if(p1MovementPoints.Count > 90)
 				p1MovementPoints.RemoveAt(0);	//then remove the last one!				
 		}
 		
