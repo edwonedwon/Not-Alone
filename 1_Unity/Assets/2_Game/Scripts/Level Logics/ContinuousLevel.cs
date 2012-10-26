@@ -90,6 +90,7 @@ public class ContinuousLevel : MonoBehaviour
 		Network.SetSendingEnabled(0, true);
 	}
 	
+	bool playTogetherAudio = false;
 	void FixedUpdate ()
 	{
 		if(p1 == null)
@@ -125,15 +126,47 @@ public class ContinuousLevel : MonoBehaviour
 			bool canCreateRiverBetweenActivatedBuoys = false;
 			int buoysWithFingersDownActivated = 0;
 			
-			if(Network.isServer)
+			//if(Network.isServer)
 			{
-				foreach(SoundBuoyScript sbs in SoundBuoyScript.WorldBuoysList)
+				if(player1.DoLinkInk() && player1.DoLinkInk())
 				{
+					SoundBuoyScript buoy1 = null;
+					SoundBuoyScript buoy2 = null;
 					
+					float minDist = 160.0f;
+					float best1 = 9999.0f;
+					float best2 = 9999.0f;
 					
+					Vector2 p1v = player1.transform.position;
+					Vector2 p2v = player2.transform.position;
 					
+					foreach(SoundBuoyScript sbs in SoundBuoyScript.WorldBuoysList)
+					{
+						Vector2 sbspos = sbs.transform.position;
+						float mag1 = (sbspos-p1v).magnitude;
+						float mag2 = (sbspos-p2v).magnitude;
+						
+						if(mag1 < minDist && mag1 < best1)
+						{
+							best1 = mag1;
+							buoy1 = sbs;
+						}
+						if(mag2 < minDist && mag2 < best2)
+						{
+							best2 = mag2;
+							buoy2 = sbs;
+						}
+					}
 					
-				}	
+					if(buoy1 != null && buoy2 != null)
+					{
+						if(buoy1 != buoy2)
+						{	
+							buoy1.ActivatedWithOther = buoy2;
+							buoy2.ActivatedWithOther = buoy1;
+						}
+					}
+				}
 			}
 			
 			//Find out if they are touching...
@@ -145,18 +178,33 @@ public class ContinuousLevel : MonoBehaviour
 			if(difference < 50.0f)
 			{
 				if(p1finger == PlayerScript.FingerState.Single && p2finger == PlayerScript.FingerState.Single)
+				{
 					timeTogetherNotMoving += Time.deltaTime;
+				}
+				if(timeTogetherNotMoving > 1.0f && !playTogetherAudio)
+				{
+					playTogetherAudio = true;
+					audio.Play();
+				}
 				if(timeTogetherNotMoving > 5.0f)
 				{
-					timeTogetherNotMoving = 0;
+					playTogetherAudio = false;
+					timeTogetherNotMoving = -5;
 					ClearAllGameEntitiesOut();
 					//GameLogicController.instance.MoveToNextLevel();		//not anymore!
 				}
 			}
 			else
 			{
+				if(playTogetherAudio)
+				{
+					playTogetherAudio = false;
+					audio.Stop();
+				}
+				
 				if(timeTogetherNotMoving >= 1.0f)
 				{
+					
 					player1.SetDoLinkInk(true);
 					player2.SetDoLinkInk(true);
 				}

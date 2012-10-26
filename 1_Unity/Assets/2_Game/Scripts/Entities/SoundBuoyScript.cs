@@ -12,20 +12,19 @@ public class SoundBuoyScript : MonoBehaviour
 	public static ArrayList RiverList = new ArrayList();
 	static float allBuoysConnectedTimer = -1.0f;	//ready-to-go!
 	
+	private bool submerged = false;
 	private FluidFieldGenerator fluidField = null;
 	public tk2dAnimatedSprite sprite = null;
 	private string[] buoyAnimations = new string[7];
 	
 	public GameObject flareTemplate = null;
 	
+	public float timeActivated = 0.0f;
 	public AudioSource audio = null;
 	public AudioClip[] ringingSounds = new AudioClip[5];
 	
 	public float riverPower = 2.0f;
-	
-	public bool BurstActivated = false;
-	public bool SoundActivated = false;
-	private SoundBuoyScript ActivatedWithOther = null;
+	public SoundBuoyScript ActivatedWithOther = null;
 	
 	private float DeactiveTimer = 0.0f;
 	private int activatedFrames = -1;
@@ -90,7 +89,6 @@ public class SoundBuoyScript : MonoBehaviour
 	
 	public void PlayRingingSound()
 	{
-		
 		networkView.RPC ("PlayRing", RPCMode.AllBuffered);
 	}
 	
@@ -134,6 +132,7 @@ public class SoundBuoyScript : MonoBehaviour
 		WorldBuoysList.Remove(this);
 	}
 	
+	float timeSinceRang = 1000.0f;
 	
 	[RPC]
 	void PlayAnimation(int idx)
@@ -143,19 +142,17 @@ public class SoundBuoyScript : MonoBehaviour
 	[RPC]
 	void PlayRing()
 	{
-		audio.PlayOneShot(ringingSounds[WorldBuoysList.IndexOf(this)]);
+		audio.clip = ringingSounds[WorldBuoysList.IndexOf(this)];
+		audio.loop = true;
+		audio.Play();
+		timeSinceRang = 0.0f;
 	}
-	
-	
 	
 	public static bool CheckForRiverCompletion()
 	{
+		return false;
 		int connects = 0;
-		foreach(SoundBuoyScript sbs in WorldBuoysList)
-		{
-			if(sbs.ActivatedWithOther != null && sbs.SoundActivated)
-				++connects;
-		}
+		
 		if(connects > 3 && connects == WorldBuoysList.Count-1)
 		{
 			if(allBuoysConnectedTimer < 0.0f)	//zero
@@ -269,11 +266,10 @@ public class SoundBuoyScript : MonoBehaviour
         closestPointOut.y = A.y + aby * t;
     }
 	
-	private bool submerged = false;
 	public void Submerge()
 	{
 		submerged = true;
-		originalScale = Vector2.zero;
+		//originalScale = Vector2.zero;
 		SetCurrentAnimation(5);	//sink...
 	}
 	
@@ -297,6 +293,15 @@ public class SoundBuoyScript : MonoBehaviour
 				
 		float dt = Time.fixedDeltaTime;
 		
+		
+		timeSinceRang += dt;
+		
+		if(timeSinceRang < 10.0f)
+		{
+			float invVolume = 1.0f - (timeSinceRang / 10.0f);
+			audio.volume = invVolume;
+			
+		}
 		PlayerScript.FingerState p1finger = player1.MouseFingerDown();
 		PlayerScript.FingerState p2finger = player1.MouseFingerDown();
 		
@@ -315,36 +320,31 @@ public class SoundBuoyScript : MonoBehaviour
 		float decreaseRate = 5.0f;
 		Vector2 vBurstDirection = v1-vMe;
 		int cnt = WorldBuoysList.Count;
-		
-		if(ActivatedWithOther == null)
-		{
-			int myIdx = WorldBuoysList.IndexOf(this);				
-			if(myIdx < cnt-1)
-			{
-				ActivatedWithOther = (SoundBuoyScript)WorldBuoysList[myIdx+1];
-			}
-			//else if(myIdx > 0)
-			//	ActivatedWithOther = (SoundBuoyScript)WorldBuoysList[0];
-		}	
 				
-		if(!SoundActivated && CheckForInkLineOverBuoy())
-			SoundActivated = true;
-		if(!SoundActivated && circles > 5)
-			SoundActivated = true;
+		//if(!SoundActivated && CheckForInkLineOverBuoy())
+		//	SoundActivated = true;
+		//if(!SoundActivated && circles > 5)
+		//	SoundActivated = true;
 		
-		if(SoundActivated)
+	
+		if(ActivatedWithOther != null)
 		{
-			if(ActivatedWithOther != null)
-			{
-				Vector2 vOther = ActivatedWithOther.transform.position;
-				vBurstDirection = vOther-vMe;
-				float power = UnityEngine.Random.Range(0.0f, 0.065f);
-				if(submerged)
-					power *= 0.2f;
-				fluidField.DropVelocityInDirection(vMe.x, vMe.y, vBurstDirection.x, vBurstDirection.y, power);
-				//sprite.color = Color.Lerp(sprite.color, Color.white, dt*increaseRate);
-			}
-		}		
+			timeActivated += dt;
+			if(timeActivated > 5.0f)
+				Submerge();
+			Vector2 vOther = ActivatedWithOther.transform.position;
+			vBurstDirection = vOther-vMe;
+			float power = UnityEngine.Random.Range(0.0f, 0.065f);
+			if(submerged)
+				power *= 2.0f;
+			fluidField.DropVelocityInDirection(vMe.x, vMe.y, vBurstDirection.x, vBurstDirection.y, power);
+			sprite.color = Color.Lerp(sprite.color, new Color(0.3f, 0.1f, 1.0f, 1.0f), dt*increaseRate);
+		}
+		else
+		{
+			sprite.color = Color.Lerp(sprite.color, new Color(0.1f, 0.1f, 0.35f, 1.0f), dt*increaseRate);
+		}
+			
 		
 		if(!submerged)
 		{
@@ -361,24 +361,7 @@ public class SoundBuoyScript : MonoBehaviour
 			//}
 		}
 		
-			if(BurstActivated || SoundActivated)
-			{
-				++activatedFrames;
-				if(BurstActivated)
-				{
-					//sprite.color = Color.Lerp(sprite.color, Color.blue, dt*increaseRate);
-				}
-				DeactiveTimer -= Time.fixedDeltaTime;
-				if(DeactiveTimer < 0.0f)
-				{
-					activatedFrames = -1;
-					BurstActivated = false;
-				}
-			}
-			else
-			{
-				//sprite.color = Color.Lerp (sprite.color, Color.yellow, dt*decreaseRate);
-			}
+			
 		
 		if(!submerged)
 		{
@@ -406,14 +389,8 @@ public class SoundBuoyScript : MonoBehaviour
 				p1MovementPoints.RemoveAt(0);	//then remove the last one!				
 		}
 		
-		if(!BurstActivated && Mathf.Abs(newcircles) > 0)// && v1Diff.magnitude < minDist)
-		{
-			BurstActivated = true;
-			activatedFrames = (int)UnityEngine.Random.Range(0, 3);
-			DeactiveTimer = 1.5f;
-		}
+		
 	}
-
 	
 	void OnSerializeNetworkView (BitStream stream, NetworkMessageInfo info)
 	{

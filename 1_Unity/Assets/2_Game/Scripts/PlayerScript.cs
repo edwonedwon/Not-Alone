@@ -29,6 +29,9 @@ public class PlayerScript : MonoBehaviour
 	public GameObject RippleObjectPrefab = null;
 	public GameObject VortexObjectPrefab = null;
 	
+	int currentPlaySndIdx = 0;
+	public AudioClip[] fingerDownSounds = new AudioClip[3];
+	
 	public enum PlayerFeeling
 	{
 		Happy,
@@ -549,15 +552,33 @@ public class PlayerScript : MonoBehaviour
 	
 	#region Finger Gestures
 	
+	
+	public void PlayOneShotAudio(int idx)
+	{
+		networkView.RPC ("PlayAudio", RPCMode.AllBuffered, idx);
+	}
+	
+	[RPC]
+	void PlayAudio(int idx)
+	{
+		audio.PlayOneShot(fingerDownSounds[idx]);
+	}
+	
+	
 	public void OnPlayerFingerDown (int finger, Vector2 pos)
 	{		
-		audio.Play();
+		PlayOneShotAudio(currentPlaySndIdx);
+		if(++currentPlaySndIdx>2)
+			currentPlaySndIdx = 0;
+		
+		
 		
 		currentMousePoints.Add(pos);
 		currentMovements.CalculateMovementBounds(pos);
 		currentMovements.CalculateCurrentQuadrant(this, pos, currentMousePoints);
 		
 		transform.position = Camera.main.ScreenToWorldPoint(new Vector3(pos.x, pos.y, zOffset));
+		GameObject.Instantiate(RippleObjectPrefab, transform.position, Quaternion.identity);
 		
 		mouseIsMovingWhileDown = true;
 		
@@ -572,26 +593,26 @@ public class PlayerScript : MonoBehaviour
 			currentFingerState = (FingerState)finger;
 			if(currentFingerState == FingerState.Single)
 			{
-				
 				//current semi-hack to place pinched-prefab object. must also be handled in the OnPinchEnd()
 				if(PinchCreateObjectPrefab != null)
 				{
 					//Network.Instantiate(PinchCreateObjectPrefab, v2D, Quaternion.identity, 0);
-				}				
+				}
 				
 				Vector2 diff = lastMouseDownPos - pos;
 				
 				if(diff.magnitude < 30.0f)
 				{
-					if(++numberOfTapsInSameSpot > 2)
+					if(++numberOfTapsInSameSpot > 1)
 					{
-						if(UnityEngine.Random.Range (0, 100) > 25.0f)						
-							fluidField.IncreaseSpiritParticles(1, isPlayer1 ? 0 : 1);						
+						//if(UnityEngine.Random.Range (0, 100) > 25.0f)						
+						fluidField.IncreaseSpiritParticles(1, isPlayer1 ? 0 : 1);
+						numberOfTapsInSameSpot = 0;
 					}
 				}
-				else
+				//else
 				{
-					numberOfTapsInSameSpot = 0;
+				//	numberOfTapsInSameSpot = 0;
 				}
 				
 				//DebugStreamer.message = "numberOfTapsInSameSpot: " + numberOfTapsInSameSpot.ToString();

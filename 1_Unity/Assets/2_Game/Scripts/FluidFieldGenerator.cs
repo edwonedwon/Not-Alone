@@ -248,11 +248,14 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
 		else
 		{
+			if(maxSpiritParticles < 25)
+			{
 			maxSpiritParticles += 1;
 			Vector3 playerpos = ownerPlayerMouseInfo[playerNm].player.transform.position;
 			playerpos.x += UnityEngine.Random.Range (-25,25);
 			playerpos.z += UnityEngine.Random.Range (-25,25);
 			spiritParticles[maxSpiritParticles-1].position = playerpos;
+			}
 		}
 	}
 	
