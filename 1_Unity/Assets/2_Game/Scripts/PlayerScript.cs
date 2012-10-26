@@ -426,6 +426,7 @@ public class PlayerScript : MonoBehaviour
 	
 	public void SpawnVortex(Vector3 worldpos)
 	{
+		return;
 		if(BlackHoleScript.WorldBlackHoles.Count > 4)
 			return;
 		
@@ -596,7 +597,7 @@ public class PlayerScript : MonoBehaviour
 				//current semi-hack to place pinched-prefab object. must also be handled in the OnPinchEnd()
 				if(PinchCreateObjectPrefab != null)
 				{
-					//Network.Instantiate(PinchCreateObjectPrefab, v2D, Quaternion.identity, 0);
+					Network.Instantiate(PinchCreateObjectPrefab, v2D, Quaternion.identity, 0);
 				}
 				
 				Vector2 diff = lastMouseDownPos - pos;

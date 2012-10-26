@@ -80,6 +80,11 @@ public class SoundBuoyScript : MonoBehaviour
 		
 		WorldBuoysList.Add(this);
 		fluidField = GameObject.FindGameObjectWithTag("fluidField").GetComponent<FluidFieldGenerator>();
+	
+		audio.clip = ringingSounds[WorldBuoysList.IndexOf(this)];
+		audio.loop = true;
+		audio.volume = 0.0f;
+		audio.Play();
 	}	
 	
 	public void SetCurrentAnimation(int idx)
@@ -87,11 +92,7 @@ public class SoundBuoyScript : MonoBehaviour
 		networkView.RPC ("PlayAnimation", RPCMode.AllBuffered, idx);
 	}
 	
-	public void PlayRingingSound()
-	{
-		networkView.RPC ("PlayRing", RPCMode.AllBuffered);
-	}
-	
+
 	
 	public void AnimationComplete (tk2dAnimatedSprite anim, int clipId)
 	{
@@ -139,14 +140,7 @@ public class SoundBuoyScript : MonoBehaviour
 	{
 		sprite.Play(buoyAnimations[idx]);
 	}
-	[RPC]
-	void PlayRing()
-	{
-		audio.clip = ringingSounds[WorldBuoysList.IndexOf(this)];
-		audio.loop = true;
-		audio.Play();
-		timeSinceRang = 0.0f;
-	}
+
 	
 	public static bool CheckForRiverCompletion()
 	{
@@ -288,7 +282,7 @@ public class SoundBuoyScript : MonoBehaviour
 				player2 = p2.GetComponent<PlayerScript>();
 		}
 	
-		if(p1 == null || p2 == null)
+		if(p1 == null)// || p2 == null)
 			return;
 				
 		float dt = Time.fixedDeltaTime;
@@ -298,19 +292,18 @@ public class SoundBuoyScript : MonoBehaviour
 		
 		if(timeSinceRang < 10.0f)
 		{
-			float invVolume = 1.0f - (timeSinceRang / 10.0f);
-			audio.volume = invVolume;
+			
 			
 		}
 		PlayerScript.FingerState p1finger = player1.MouseFingerDown();
-		PlayerScript.FingerState p2finger = player1.MouseFingerDown();
+		//PlayerScript.FingerState p2finger = player1.MouseFingerDown();
 		
 		int circles = NumCirclesAroundBuoy();
 		int newcircles = circles - numCirclesCompleted;
 		numCirclesCompleted = circles;
 		Vector2 vMe = transform.position;
 		Vector2 v1 = p1.transform.position;
-		Vector2 v2 = p2.transform.position;
+		//Vector2 v2 = p2.transform.position;
 		
 		//Vector3 scale = transform.localScale;
 		//scale = Vector2.Lerp(scale, originalScale*(Mathf.Abs(Mathf.Cos(Time.realtimeSinceStartup*7)) * 1.3f + 0.4f), 3.0f*dt);
@@ -327,6 +320,14 @@ public class SoundBuoyScript : MonoBehaviour
 		//	SoundActivated = true;
 		
 	
+		float amountOfInkSuckedIn = fluidField.SuckInkInAt(vMe.x, vMe.y, 10);
+		
+		float invVolume =  (amountOfInkSuckedIn / 5000.0f);
+			audio.volume = invVolume;
+		
+		//DebugStreamer.message = "amount sucked: " + amountOfInkSuckedIn.ToString();
+		
+		/*
 		if(ActivatedWithOther != null)
 		{
 			timeActivated += dt;
@@ -344,6 +345,7 @@ public class SoundBuoyScript : MonoBehaviour
 		{
 			sprite.color = Color.Lerp(sprite.color, new Color(0.1f, 0.1f, 0.35f, 1.0f), dt*increaseRate);
 		}
+		*/
 			
 		
 		if(!submerged)
@@ -351,7 +353,7 @@ public class SoundBuoyScript : MonoBehaviour
 			vBurstDirection.Normalize();
 			if(newcircles > 0)
 			{
-				PlayRingingSound();
+				//PlayRingingSound();
 				SetCurrentAnimation(3);
 			}
 			//for(int i = 0; i < newcircles; ++i)
@@ -377,8 +379,8 @@ public class SoundBuoyScript : MonoBehaviour
 			}
 			else if(Network.isClient)
 			{
-				p1MovementPoints.Add(v2);
-				if(p2finger == PlayerScript.FingerState.None)// && p2finger == PlayerScript.FingerState.None)
+				//p1MovementPoints.Add(v2);
+				//if(p2finger == PlayerScript.FingerState.None)// && p2finger == PlayerScript.FingerState.None)
 				{
 					numCirclesCompleted = 0;
 					p1MovementPoints.Clear();

@@ -712,6 +712,39 @@ public class FluidFieldGenerator : MonoBehaviour
 		DoVelocityBurst(screenPos.x, screenPos.y, radius, burstStrength);		
 	}
 	
+	public float SuckInkInAt(float worldx, float worldy, int radius)
+	{
+		Vector2 screenPos1 = Camera.main.WorldToViewportPoint(new Vector2(worldx, worldy));
+		float totalInkInRadius = 0.0f;
+		
+		int x1 = (int)(screenPos1.x * N);
+		int y1 = (int)(screenPos1.y * N);
+		
+		int hr = radius / 2;
+		
+		for(int i = x1-hr; i < x1+hr; ++i)
+		{
+			for(int j = y1-hr; j < y1+hr; ++j)
+			{
+				int xDelta = x1-i;
+				int yDelta = y1-j;
+				
+				if(i >= 0 && i < N && j >= 0 && j < N)
+				{
+					totalInkInRadius += densityField[i,j];
+					densityField[i,j] *= 0.98f;
+					if(i != x1 && j != y1)
+					{
+						u[i, j] += 1.0f / xDelta * 0.10f;
+						v[i, j] += 1.0f / yDelta * 0.10f;
+					}
+				}
+			}
+		}	
+		
+		
+		return totalInkInRadius;
+	}
 	public void DropVelocityInDirection(float worldPosx, float worldPosy, float dirx, float diry, float burstStrength)
 	{
 		Vector2 screenPos1 = Camera.main.WorldToViewportPoint(new Vector2(worldPosx, worldPosy));
@@ -1278,6 +1311,7 @@ public class FieldVisualizer : MonoBehaviour
 	
 	private Color32[] vertColors = null;
 	private Vector3[] vertPositions = null;
+	private Vector2[] uvs = null;
 
 	private int N = 0;
 	private int beginXIdx = 0;
@@ -1300,12 +1334,13 @@ public class FieldVisualizer : MonoBehaviour
 		
 		vertPositions = new Vector3[arraySize];
 		vertColors = new Color32[arraySize];
-		Vector2[] uv = new Vector2[arraySize];
+		uvs = new Vector2[arraySize];
 		
 		Camera camcam = Camera.main;
 		float screenWidth = camcam.GetScreenWidth()-1;
 		float screenHeight = camcam.GetScreenHeight()-1;
 			
+		
 		float screenWidthPerBlockX = screenWidth * gridAspectScale.x;
 		float screenWidthPerBlockY = screenHeight * gridAspectScale.y;
 		
@@ -1331,8 +1366,8 @@ public class FieldVisualizer : MonoBehaviour
 				int idx = y*width+x;
 				
 				vertPositions[idx] = vertPos;
-				uv[idx] = new Vector2 (xpos, ypos);
-				vertColors[idx] = new Color32(0, 255, 0, 255);
+				uvs[idx] = new Vector2 ( (float)x/(float)width, (float)y / (float)height);
+				vertColors[idx] = new Color32(255, 255, 255, 255);
 				
 				//float randomX = (float)rand.NextDouble() * particleGridOffsets;
 				//float randomY = (float)rand.NextDouble() * particleGridOffsets;
@@ -1346,7 +1381,7 @@ public class FieldVisualizer : MonoBehaviour
 		
 		mesh.vertices = vertPositions;
 		mesh.colors32 = vertColors;
-		mesh.uv = uv;
+		mesh.uv = uvs;
 		
 		//indices
 		int[] triangles = new int[(height - 1) * (width - 1) * 6];
@@ -1371,8 +1406,19 @@ public class FieldVisualizer : MonoBehaviour
 		mesh.Optimize();
 	}
 		
+	
+	Texture2D fluidTexture = null;
+	
+	
 	public void UpdateLookBasedOnFluid(FluidFieldGenerator fluidField, float N, float vertDivsX, float vertDivsY, Color fluidColor, Color inkColor)
 	{
+		
+		if(fluidTexture == null || (int)N != fluidTexture.width)
+		{
+			fluidTexture = new Texture2D((int)N, (int)N, TextureFormat.ARGB32, false);	
+			this.renderer.material.mainTexture = fluidTexture;
+		}
+		
         float sw = width-1;
         float sh = height-1;
 		
@@ -1412,12 +1458,20 @@ public class FieldVisualizer : MonoBehaviour
 				vertColors[vidx].r = vertColorR;
 				vertColors[vidx].g = vertColorG;
 				vertColors[vidx].b = vertColorB;
+				vertColors[vidx].a = 255;
 				//vertPositions[vidx].z = vertColorR;
 			}
 		}
 		
 		Mesh mesh = GetComponent<MeshFilter>().mesh;
 		mesh.colors32 = vertColors;
+		
+		fluidTexture.filterMode = FilterMode.Trilinear;
+		fluidTexture.mipMapBias = -0.5f;
+	fluidTexture.SetPixels32(vertColors);
+	fluidTexture.Apply(false);
+		
+		
 		//mesh.vertices = vertPositions;
 		//mesh.RecalculateNormals();		
 	}
