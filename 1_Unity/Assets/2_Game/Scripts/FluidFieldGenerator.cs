@@ -523,7 +523,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		DensityStep(diff, dt);
 		
 		totalDensity *= 0.001f;
-		DebugStreamer.message = "total density: " + totalDensity.ToString();
+		//DebugStreamer.message = "total density: " + totalDensity.ToString();
 		if(totalDensity > 160.0f)
 			TheCave.FadeIn = true;
 		UpdateSpritParticles();
