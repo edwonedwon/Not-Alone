@@ -6,7 +6,8 @@ using System;
 public class FluidFieldGenerator : MonoBehaviour
 {
 	public Material material;
-	
+	public Camera camcam = null;
+	public caveLogic TheCave = null;
 	public int N = 96;
 	private int N1 = 0;
 	public int KCount = 3;
@@ -341,7 +342,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		
 		float dt = 1.0f / fluidFPS;
 		
-		UpdateFluids(position, scale, Camera.main, viscocity, density, dt);
+		UpdateFluids(position, scale, viscocity, density, dt);
 		
 		for(int i = 0; i < VisualizerGridSize; ++i)
 		{
@@ -379,9 +380,9 @@ public class FluidFieldGenerator : MonoBehaviour
 	public float amountOfHappiness = 0.0f;
 	public float amountOfAngriness = 0.0f;
 	
-	public void UpdateMouses(Camera camcam, float dt)
+	public void UpdateMouses(float dt)
 	{
-		System.Random rand = new System.Random();
+		//System.Random rand = new System.Random();
 		
 		Vector2[] playerScreenPos = new Vector2[2] { Vector2.zero, Vector2.zero};
 		Vector2[] playerWorldPos = new Vector2[2] { Vector2.zero, Vector2.zero};
@@ -490,11 +491,11 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
 	}
 	
-    public void UpdateFluids(Vector3 position, Vector3 scale, Camera camcam, float visc, float diffus, float dt)
+    public void UpdateFluids(Vector3 position, Vector3 scale, float visc, float diffus, float dt)
     {
 		linesToDraw.Clear();
 		
-		UpdateMouses(camcam, dt);
+		UpdateMouses(dt);
 
 		float viscosity = 0.000001f*visc;
 		float diff = 0.000001f*diffus;
@@ -516,13 +517,19 @@ public class FluidFieldGenerator : MonoBehaviour
 			}
 		}
 		
+		
 		VelocityStep(viscosity, dt);
+		totalDensity = 0.0f;
 		DensityStep(diff, dt);
 		
-		UpdateSpritParticles(camcam);
+		totalDensity *= 0.001f;
+		DebugStreamer.message = "total density: " + totalDensity.ToString();
+		if(totalDensity > 160.0f)
+			TheCave.FadeIn = true;
+		UpdateSpritParticles();
     }
 	
-	public void UpdateSpritParticles(Camera camcam)
+	public void UpdateSpritParticles()
 	{
 		if(spiritParticleSystem == null)
 			return;
@@ -678,7 +685,6 @@ public class FluidFieldGenerator : MonoBehaviour
 	
 	public void UpdateBasedOnBlackHole(BlackHoleScript bhole)
 	{
-		Camera camcam = Camera.main;
 		float screenWidth = camcam.GetScreenWidth()-1;
 		float screenHeight = camcam.GetScreenHeight()-1;
 		
@@ -735,8 +741,8 @@ public class FluidFieldGenerator : MonoBehaviour
 					densityField[i,j] *= 0.98f;
 					if(i != x1 && j != y1)
 					{
-						u[i, j] += 1.0f / xDelta * 0.10f;
-						v[i, j] += 1.0f / yDelta * 0.10f;
+						u[i, j] += 1.0f / xDelta * 0.20f;
+						v[i, j] += 1.0f / yDelta * 0.20f;
 					}
 				}
 			}
@@ -1264,6 +1270,7 @@ public class FluidFieldGenerator : MonoBehaviour
 		}
     }
 	
+	float totalDensity = 0.0f;
 	private void AddDensitySource(int startX, int startY, int NCOUNT, float removalRate, float dt)
     {	
 		float mult = 1.0f - removalRate;
@@ -1275,7 +1282,8 @@ public class FluidFieldGenerator : MonoBehaviour
 				int idxJ = startY+j;
 				
 				densityField[idxI, idxJ] += prevDensityField[idxI, idxJ] * dt;
-				densityField[idxI, idxJ] *= mult;					
+				densityField[idxI, idxJ] *= mult;	
+				totalDensity += densityField[idxI, idxJ];
 			}
 		}
     }
@@ -1335,10 +1343,9 @@ public class FieldVisualizer : MonoBehaviour
 		vertPositions = new Vector3[arraySize];
 		vertColors = new Color32[arraySize];
 		uvs = new Vector2[arraySize];
-		
-		Camera camcam = Camera.main;
-		float screenWidth = camcam.GetScreenWidth()-1;
-		float screenHeight = camcam.GetScreenHeight()-1;
+
+		float screenWidth = fluidField.camcam.GetScreenWidth()-1;
+		float screenHeight = fluidField.camcam.GetScreenHeight()-1;
 			
 		
 		float screenWidthPerBlockX = screenWidth * gridAspectScale.x;

@@ -318,12 +318,11 @@ public class SoundBuoyScript : MonoBehaviour
 		//	SoundActivated = true;
 		//if(!SoundActivated && circles > 5)
 		//	SoundActivated = true;
-		
 	
 		float amountOfInkSuckedIn = fluidField.SuckInkInAt(vMe.x, vMe.y, 10);
 		
-		float invVolume =  (amountOfInkSuckedIn / 5000.0f);
-			audio.volume = invVolume;
+		float invVolume =  (amountOfInkSuckedIn / 2500.0f);
+			audio.volume = invVolume*invVolume;
 		
 		//DebugStreamer.message = "amount sucked: " + amountOfInkSuckedIn.ToString();
 		
